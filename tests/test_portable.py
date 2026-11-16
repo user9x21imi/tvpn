@@ -47,7 +47,15 @@ class PortableTests(unittest.TestCase):
         for value in occupied:
             if not value:current+=1
             elif current:gaps.append(current);current=0
-        self.assertLessEqual(max(gaps,default=0),1)
+        self.assertEqual(gaps,[1]*5)
+        for width in (64,80,96,124):
+            resized=stoped(width,15)
+            columns=[any(row[x]!=' ' for row in resized) for x in range(len(resized[0]))]
+            gaps=[];current=0
+            for ink in columns:
+                if not ink:current+=1
+                elif current:gaps.append(current);current=0
+            self.assertEqual(gaps,[1]*5, f'Uneven spacing at width {width}')
 
     def test_macos_interface_event_and_country_confirmation(self):
         m=panel.Model('paris')
