@@ -16,7 +16,8 @@ import time
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from riseup_regions import REGIONS, normalize
+from riseup_regions import REGIONS, normalize, availability
+from verify_exit import verify
 
 PROFILE = 'RiseupVPN-Panel'
 STOP = threading.Event()
@@ -163,7 +164,9 @@ class Backend:
         event('state', 'catalog', 'Получение списка шлюзов')
         inventory = self.directory/'gateways.json'
         self.fetch('config/eip-service.json', inventory)
-        gateways = normalize(json.loads(inventory.read_text()), self.selected)
+        document=json.loads(inventory.read_text())
+        for region,count in availability(document).items():event('availability',region,count,'Riseup')
+        gateways = normalize(document, self.selected)
         if not gateways:
             raise RuntimeError('Нет публичных OpenVPN-шлюзов выбранного города')
         event('state', 'certificate', 'Получение сертификата')
@@ -235,6 +238,14 @@ class Backend:
                     try: public = str(ipaddress.IPv4Address(trace.get('ip','')))
                     except ValueError: continue
                     if result.returncode == 0 and trace.get('loc') == country:
+                        evidence=subprocess.run([str(self.curl),'-q4fsS','--noproxy','*','--interface',local,
+                                                 '--connect-timeout','5','--max-time','8',
+                                                 f'https://ipwho.is/{public}?fields=success,ip,country_code,city,message'],
+                                                capture_output=True,text=True,timeout=11)
+                        if evidence.returncode:continue
+                        try:city,observed=verify(json.loads(evidence.stdout),public,country)
+                        except (ValueError,TypeError):continue
+                        event('geo',city,observed,'ipwho.is')
                         event('connected', public, country)
                         return True
                 return False

@@ -21,6 +21,7 @@ work=$(mktemp -d "$backend_dir/.install.XXXXXXXX")
 trap 'rm -rf -- "$work"' EXIT
 install -o root -g root -m 755 "$source_dir/Riseup-Amsterdam-SteamDeck.sh" "$work/backend.sh"
 install -o root -g root -m 644 "$source_dir/riseup_regions.py" "$work/riseup_regions.py"
+install -o root -g root -m 644 "$source_dir/verify_exit.py" "$work/verify_exit.py"
 {
     echo '# RiseupVPN: exact commands only; never a user-writable script or arbitrary shell.'
     echo 'deck ALL=(root) NOPASSWD: /var/lib/riseup-vpn/backend.sh --text --check'
@@ -32,7 +33,7 @@ install -o root -g root -m 644 "$source_dir/riseup_regions.py" "$work/riseup_reg
 chmod 440 "$work/policy"
 visudo -cf "$work/policy"
 # Keep a copy so an administrator can roll back a previous installation.
-for name in backend.sh riseup_regions.py; do
+for name in backend.sh riseup_regions.py verify_exit.py; do
     if [[ -f "$backend_dir/$name" ]]; then cp -p -- "$backend_dir/$name" "$backend_dir/$name.previous"; fi
     mv -fT -- "$work/$name" "$backend_dir/$name"
 done

@@ -3,6 +3,7 @@
 import collections
 import curses
 import ipaddress
+import locale
 import os
 import queue
 import re
@@ -25,6 +26,17 @@ from riseup_regions import REGIONS
 from stoped_title import render as stoped_render
 from world_map import render as world_render, position as world_position
 REGION_KEYS = list(REGIONS)
+REGION_COUNTS = {}
+
+
+def art_text(text):
+    """Use ordinary ASCII art where Terminal.app cannot render Braille reliably."""
+    replacements={'●':'.','↓':'RX','↑':'TX','—':'-','…':'...','·':':','›':'>'}
+    shades=' .:-=+*##'
+    return ''.join(shades[(ord(c)-0x2800).bit_count()] if 0x2800 <= ord(c) <= 0x28ff else
+                   '._-:=+*#'['▁▂▃▄▅▆▇█'.index(c)] if c in '▁▂▃▄▅▆▇█' else
+                   replacements.get(c,c) for c in text)
+
 
 
 def safe(text):
@@ -33,6 +45,9 @@ def safe(text):
 
 class Model:
     def __init__(self, selected='amsterdam'):
+        self.art = os.environ.get('RISEUP_ART_STYLE','ascii' if sys.platform=='darwin' else 'unicode')
+        self.counts = dict(REGION_COUNTS)
+        self.geo_city = '—'
         self.interface = 'riseupvpn0'
         self.selected = selected
         self.expected = REGIONS[selected]['country']
@@ -58,12 +73,19 @@ class Model:
                     self.detail = self.logs[-1][:120]
                 if a != 'connected':
                     self.since = None
-                    self.ip = self.region = '—'
+                    self.ip = self.region = self.geo_city = '—'
             elif kind == 'detail':
                 self.detail = safe(b)
             elif kind == 'location':
                 if a in REGIONS and c == REGIONS[a]['country']:
                     self.selected, self.expected, self.city = a, c, safe(b)
+            elif kind == 'availability':
+                if a in REGIONS and b.isdigit():
+                    self.counts[a] = int(b)
+                    REGION_COUNTS[a] = int(b)
+            elif kind == 'geo':
+                if b == self.expected:
+                    self.geo_city = safe(a)
             elif kind == 'interface':
                 if a and len(a) < 128 and a == safe(a):
                     self.interface = a
@@ -155,7 +177,7 @@ def draw(screen, m, journal, ended, choosing=None):
     def put(y, x, text, color=0, bold=False):
         if 0 <= y < height and 0 <= x < width - 1:
             try:
-                screen.addnstr(y, x, text, width - x - 1,
+                screen.addnstr(y, x, art_text(text) if m.art=='ascii' else text, width - x - 1,
                                curses.color_pair(color) | (curses.A_BOLD if bold else 0))
             except curses.error:
                 pass
@@ -201,7 +223,7 @@ def draw(screen, m, journal, ended, choosing=None):
         timer = f'{duration//3600:02}:{duration//60%60:02}:{duration%60:02}' if m.since else '—'
         rows = [('Локация', m.city), ('Регион выхода', m.region), ('Внешний IP', m.ip),
                 ('Шлюз', m.gateway), ('Сессия', timer), ('Интерфейс', m.interface),
-                ('Точка @', f'выход {m.region} подтверждён' if m.state == 'connected' else 'выбранная локация')]
+                ('GeoIP-город', m.geo_city + (' (ipwho.is)' if m.geo_city != '—' else ''))]
         spacing = 2 if wide and height >= 36 else 1
         for i, (label, value) in enumerate(rows):
             put(y+i*spacing, x, f'{label:<15} {value}', 0, i == 2)
@@ -214,31 +236,36 @@ def draw(screen, m, journal, ended, choosing=None):
             y += 4
         if y > height-1:
             put(height-3, 2, 'Увеличьте окно / уменьшите шрифт для карты и графиков', 4)
-    put(height-2, 2, '[R] Регион  [L] Журнал  ' + ('[Ctrl+S] Подключить  [Q] Выход' if ended else '[Ctrl+S] Остановить'), 5)
+    put(height-2, 2, '[R] Регион [L] Журнал [U] Вид ' + ('[Ctrl+S] Старт [Q] Выход' if ended else '[Ctrl+S] Стоп'), 5)
     if choosing is not None:
         box_width = min(width-4, 66)
         left = max(1, (width-box_width)//2)
         top = max(5, (height-13)//2)
         lines = ['ВЫБОР БЕСПЛАТНОГО РЕГИОНА · RISEUP', '',
-                 *[('  › ' if index == choosing else '    ') + f"{info['city']:<18} {info['country']}"
+                 *[('  › ' if index == choosing else '    ') + f"{info['city']:<18} {info['country']}  " + ("нет шлюзов Riseup" if m.counts.get(REGION_KEYS[index])==0 else str(m.counts[REGION_KEYS[index]])+" шлюз(а)" if REGION_KEYS[index] in m.counts else "проверка при подключении")
                    for index, info in enumerate(REGIONS.values())], '',
                  '↑/↓ выбрать · Enter подключить · Esc отменить',
                  'Адреса шлюзов загружаются из каталога Riseup.',
                  'Текущее соединение сначала будет закрыто.']
         for offset, line in enumerate(lines):
             put(top+offset, left, line.ljust(box_width)[:box_width],
-                4 if offset == choosing+2 else 5, offset == choosing+2 or offset == 0)
+                6 if 2 <= offset < 8 and m.counts.get(REGION_KEYS[offset-2])==0 else 4 if offset==choosing+2 else 5, offset==choosing+2 or offset==0)
     screen.refresh()
 
 
 def run(script, selected='amsterdam'):
+    try:
+        locale.setlocale(locale.LC_ALL,'')
+    except locale.Error:
+        pass
     m, messages = Model(selected), queue.Queue()
     # Backend owns sudo, certificate acquisition and all network cleanup.
     command = [sys.executable if script.endswith('.py') else '/bin/bash', script,
                '--text', '--events', '--region', selected]
     process = subprocess.Popen(command, stdin=subprocess.PIPE,
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                               text=True, bufsize=1)
+                               text=True, encoding='utf-8', errors='replace', bufsize=1,
+                               env=dict(os.environ,PYTHONIOENCODING='utf-8'))
     def reader():
         for line in process.stdout:
             messages.put(line)
@@ -291,7 +318,7 @@ def run(script, selected='amsterdam'):
                             m.detail = m.logs[-1]
                     elif m.state != 'error':
                         m.state, m.detail = 'off', 'Туннель остановлен; DNS восстановлен'
-                        m.ip = m.region = '—'
+                        m.ip = m.region = m.geo_city = '—'
                         m.since = m.last = None
                         m.down = m.up = 0
                         m.history.clear()
@@ -331,6 +358,9 @@ def run(script, selected='amsterdam'):
                 elif key in (curses.KEY_DOWN, ord('j')):
                     choosing = (choosing+1) % len(REGION_KEYS)
                 elif key in (10, 13, curses.KEY_ENTER):
+                    if m.counts.get(REGION_KEYS[choosing]) == 0:
+                        m.detail = 'В актуальном каталоге Riseup нет шлюзов этого региона'
+                        continue
                     next_region = REGION_KEYS[choosing]
                     choosing = None
                     if not ended:
@@ -339,6 +369,9 @@ def run(script, selected='amsterdam'):
                 elif key in (27, ord('r'), ord('R')):
                     choosing = None
                 continue
+            if key in (ord('u'),ord('U')):
+                m.art = 'unicode' if m.art=='ascii' else 'ascii'
+                os.environ['RISEUP_ART_STYLE'] = m.art
             if key == 19:  # Ctrl+S, with terminal XON/XOFF disabled.
                 if ended:
                     if m.cleanup:

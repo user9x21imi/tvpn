@@ -88,7 +88,7 @@ mkdir -p "$HOME/.local/share/riseup-vpn"
 cp -p "$HOME/.local/share/riseup-vpn/Riseup-Amsterdam-SteamDeck.sh" \
   "$HOME/.local/share/riseup-vpn/Riseup-Amsterdam-SteamDeck.sh.backup"
 install -m 700 Riseup-Amsterdam-SteamDeck.sh riseup-panel.py riseup_regions.py \
-  world_map.py stoped_title.py install-passwordless.sh "$HOME/.local/share/riseup-vpn/"
+  world_map.py stoped_title.py verify_exit.py install-passwordless.sh "$HOME/.local/share/riseup-vpn/"
 install -m 600 world-land.json stoped-mask.json "$HOME/.local/share/riseup-vpn/"
 bash "$HOME/.local/share/riseup-vpn/install-passwordless.sh"
 ```
@@ -122,7 +122,7 @@ alias VPN='bash "$HOME/.local/share/riseup-vpn/Riseup-Amsterdam-SteamDeck.sh"'
 python3 -m unittest discover -s tests -v
 ```
 
-26 тестов: тайм-аут сертификата; разбор и отказ каталога; резервные шлюзы;
+36 тестов: тайм-аут сертификата; разбор и отказ каталога; резервные шлюзы;
 шесть регионов; отказ при несовпадении страны; расчёт и сброс трафика;
 штатный DNS-hook из встроенного архива на временном resolv.conf;
 карта и компоновка; PTY-запуск, журнал, resize и Ctrl+C; смена региона
@@ -130,10 +130,14 @@ python3 -m unittest discover -s tests -v
 13 точных правил visudo. Сетевые процессы в тестах подменены.
 Встроенный runtime OpenVPN сохранён побайтно.
 
-В этой сессии запрещены sudo (no_new_privs), netlink и прямой сетевой доступ.
-Поэтому системное правило ещё не установлено; реальные туннели, доступность
-каталога и восстановление системных маршрутов/DNS не проверены.
+Автоматические проверки выполняются без создания реального VPN-туннеля.
+Нативную установку и подключение на macOS нужно подтвердить на Mac.
 В Linux перед запуском сохраните `ip -4 route`, `ip -6 route`,
 `cat /etc/resolv.conf` и, при systemd-resolved, `resolvectl status`.
 После Ctrl+S сравните состояние с исходным и убедитесь, что
 `ip link show riseupvpn0` больше не находит интерфейс.
+
+Обновление macOS: один вход — `Install-RiseupVPN.command` (или
+`start-macos.command` в скачанной папке). Шрифты: `U` — ASCII/Unicode.
+Город шлюза и город GeoIP показываются отдельно; недоступные регионы
+не подключаются. Открывайте [README.md](README.md) для актуальной установки.

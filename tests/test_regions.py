@@ -48,8 +48,10 @@ class RegionTests(unittest.TestCase):
                                   {'type': 'openvpn', 'protocols': ['udp', 'tcp'], 'ports': ['80', '1194']} ]}}]}
 
     def test_catalog_selects_supported_transport_and_city(self):
-        row, = normalize(self.fixture(), 'montreal')
+        rows = normalize(self.fixture(), 'montreal')
+        row = rows[0]
         self.assertEqual(row, ('vpn17-mtl', '192.0.2.4', 'udp', '1194', 'Монреаль', 'CA'))
+        self.assertEqual(rows[1][2:4],('tcp','80'))
         self.assertEqual(normalize(self.fixture(), 'paris'), [])
 
     def test_catalog_rejects_private_invalid_or_wrong_country_gateways(self):
@@ -126,22 +128,36 @@ while :; do sleep .05; done
                     if select.select([master], [], [], .03)[0]:
                         try: output.extend(os.read(master, 65536))
                         except OSError: break
+            def until(predicate, timeout=6):
+                deadline=time.monotonic()+timeout
+                while not predicate() and time.monotonic()<deadline:
+                    collect(.05)
+                self.assertTrue(predicate(), output.decode(errors='replace')[-3000:])
             try:
-                collect(.3)
+                until(lambda: b'[Ctrl+S]' in output)
                 # Ctrl+S must reach curses even if the terminal initially enables IXON.
-                os.write(master, b'\x13'); collect(.25)
+                os.write(master, b'\x13'); collect(.1)
                 self.assertIsNone(process.poll())
+                until(lambda: b'[Q]' in output)
                 if cleanup_ok:
                     self.assertIn('stop:amsterdam', log.read_text())
-                    os.write(master, b'\x13'); collect(.25)
+                    restart_offset=len(output)
+                    os.write(master, b'\x13')
+                    until(lambda: log.read_text().count('start:amsterdam') == 2 and b'[Ctrl+S]' in output[restart_offset:])
                     self.assertEqual(log.read_text().count('start:amsterdam'), 2)
-                os.write(master, b'r'); collect(.15)
+                os.write(master, b'r')
+                until(lambda: 'ВЫБОР БЕСПЛАТНОГО РЕГИОНА'.encode() in output)
                 os.write(master, b'j'); collect(.15)
-                os.write(master, b'\r'); collect(.5)
+                os.write(master, b'\r'); collect(.2)
+                if cleanup_ok:
+                    until(lambda: 'start:paris' in log.read_text())
+                    collect(.2)
                 if cleanup_ok:
                     self.assertEqual(log.read_text().splitlines()[-3:],
                                      ['start:amsterdam', 'stop:amsterdam', 'start:paris'])
                     os.killpg(process.pid, signal.SIGINT)
+                    collect(.2)
+                    until(lambda: 'stop:paris' in log.read_text())
                     collect(.2)
                     os.write(master, b'q')
                 else:
@@ -155,7 +171,11 @@ while :; do sleep .05; done
                 if process.poll() is None:
                     os.killpg(process.pid, signal.SIGTERM)
                     collect(.3)
-                    process.wait(timeout=5)
+                    try:
+                        process.wait(timeout=5)
+                    except subprocess.TimeoutExpired:
+                        os.killpg(process.pid,signal.SIGKILL)
+                        process.wait(timeout=5)
                 os.close(master)
 
     def test_terminal_switch_waits_for_cleanup_before_starting_next_region(self):

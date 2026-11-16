@@ -3,6 +3,7 @@
 # Ctrl+C disconnects and restores DNS. Bundled OpenVPN: see --licenses.
 set -euo pipefail
 export PATH=/usr/bin:/bin:/usr/sbin:/sbin
+export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8
 umask 077
 
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
@@ -40,7 +41,9 @@ if (( EUID != 0 )); then
     echo 'Backend macOS должен запускаться через установленное правило sudo.' >&2
     exit 1
 fi
-for program in curl /usr/bin/python3 /usr/sbin/networksetup; do
+python_runtime=$(cat "$script_dir/python-path")
+[[ -x "$python_runtime" ]] || { echo 'Перезапустите установщик: Python не найден.' >&2; exit 1; }
+for program in curl "$python_runtime" /usr/sbin/networksetup; do
     command -v "$program" >/dev/null || { echo "Не найден $program" >&2; exit 1; }
 done
 lockdir=/var/run/riseup-vpn-panel.lock
@@ -96,13 +99,20 @@ for api_port in 4430 443; do
         if curl -q4fsS --noproxy '*' --resolve "api.black.riseup.net:$api_port:$api_address" \
             --connect-timeout 6 --max-time 12 "${ca_args[@]}" \
             "https://api.black.riseup.net:$api_port/3/config/eip-service.json" -o gateways.json &&
-            /usr/bin/python3 -I "$script_dir/riseup_regions.py" gateways.json "$requested_region" > gateways.tsv &&
-            [[ -s gateways.tsv ]]; then
+            "$python_runtime" -I "$script_dir/riseup_regions.py" gateways.json --availability > gateways.status; then
             catalog_ok=1
             break 2
         fi
     done
 done
+if (( catalog_ok )); then
+    (( events )) && cat gateways.status
+    "$python_runtime" -I "$script_dir/riseup_regions.py" gateways.json "$requested_region" > gateways.tsv
+    if [[ ! -s gateways.tsv ]]; then
+        echo "В текущем каталоге Riseup нет шлюзов для $city. Регион недоступен у провайдера." >&2
+        exit 1
+    fi
+fi
 if (( ! catalog_ok )); then
     if [[ "$requested_region" == amsterdam ]]; then
         echo 'Список недоступен. Использую сохранённые шлюзы Амстердама.'
@@ -126,7 +136,7 @@ riseup_cert() {
       if curl -q4fsS --noproxy "*" --resolve "api.black.riseup.net:$port:$address" --connect-timeout 6 --max-time 12 "${ca[@]}" "https://api.black.riseup.net:$port/3/cert" -o client.pem; then return 0; fi
     done
   done
-  echo "Steam Deck не смог связаться с сервером сертификатов Riseup на обоих портах." >&2
+  echo "Не удалось связаться с сервером сертификатов Riseup на обоих портах." >&2
   return 1
 }
 riseup_cert
@@ -191,6 +201,16 @@ PROFILE
                 if trace=$(curl -qfsS -4 --noproxy '*' --interface "if!$tunnel_iface" \
                     --connect-timeout 5 --max-time 8 "https://$address_check/cdn-cgi/trace") &&
                     grep -qx "loc=$expected_country" <<< "$trace"; then
+                    public_ip=$(sed -n 's/^ip=//p' <<< "$trace")
+                    if ! curl -qfsS -4 --noproxy '*' --interface "if!$tunnel_iface" \
+                        --connect-timeout 5 --max-time 8 "https://ipwho.is/$public_ip?fields=success,ip,country_code,city,message" -o exit-geo.json; then
+                        echo 'Независимая проверка страны недоступна; подключение не подтверждено.' >&2
+                        return 1
+                    fi
+                    if ! "$python_runtime" -I "$script_dir/verify_exit.py" exit-geo.json "$public_ip" "$expected_country" > exit-geo.status; then
+                        return 1
+                    fi
+                    (( events )) && cat exit-geo.status
                     event connected "$(sed -n 's/^ip=//p' <<< "$trace")" "$expected_country"
                     printf 'VPN подключён. Выход %s, внешний IP: %s\n' "$expected_country" "$(sed -n 's/^ip=//p' <<< "$trace")"
                     return 0

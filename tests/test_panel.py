@@ -55,6 +55,8 @@ class PanelTests(unittest.TestCase):
         """Execute original control flow with network/runtime isolated in a tempdir."""
         with tempfile.TemporaryDirectory() as tmp:
             d = Path(tmp)
+            import shutil
+            shutil.copy2(ROOT/'verify_exit.py',d/'verify_exit.py')
             import json
             gateways, locations = [], {}
             for index, (region, meta) in enumerate(P.REGIONS.items()):
@@ -100,8 +102,13 @@ curl() {
   elif [[ "$*" == *'eip-service.json'* ]]; then
     if [[ "$SCENARIO" == no_catalog ]]; then return 28; fi
     cp "$TEST_DIR/inventory.json" gateways.json
+  elif [[ "$*" == *'ipwho.is/'* ]]; then
+    geo_country=$EXIT_COUNTRY
+    [[ "$SCENARIO" == geo_conflict ]] && geo_country=FR
+    printf '{"success":true,"ip":"1.2.3.4","country_code":"%s","city":"Observed city"}' "$geo_country" > exit-geo.json
   else
     if [[ "$SCENARIO" == fallback && "$(cat "$TEST_DIR/host")" == vpn04-ams ]]; then return 28; fi
+    if [[ "$SCENARIO" == udp_blocked ]] && grep -q '^proto udp$' client.ovpn; then return 28; fi
     printf 'ip=1.2.3.4\\nloc=%s\\n' "$EXIT_COUNTRY"
   fi
 }
@@ -132,6 +139,20 @@ curl() {
         self.assertIn('vpn13-ams\tАмстердам', result.stdout)
         self.assertEqual(actions.count('route-added'), 2)
         self.assertEqual(actions.count('route-restored'), 2)
+        self.assertGreaterEqual(actions.count('dns-restored'),2)
+        self.assertIn('@RISEUP\tcleanup\tok',result.stdout)
+
+    def test_tcp_fallback_when_udp_is_blocked(self):
+        result, actions = self.backend('udp_blocked')
+        self.assertEqual(result.returncode,130,result.stderr)
+        self.assertIn('@RISEUP\tconnected',result.stdout)
+        self.assertEqual(actions.count('route-added'),3)
+
+    def test_independent_geo_country_conflict_rejects_exit(self):
+        result, actions = self.backend('geo_conflict')
+        self.assertEqual(result.returncode,1,result.stderr)
+        self.assertNotIn('@RISEUP\tconnected',result.stdout)
+        self.assertIn('Страна выхода FR, выбрана NL',result.stderr)
         self.assertGreaterEqual(actions.count('dns-restored'), 2)
         self.assertIn('@RISEUP\tcleanup\tok', result.stdout)
 
@@ -148,7 +169,7 @@ curl() {
         result, actions = self.backend('wrong_country', 'paris', 'NL')
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertNotIn('@RISEUP\tconnected', result.stdout)
-        self.assertEqual(actions.count('route-restored'), 2)
+        self.assertEqual(actions.count('route-restored'), 8)
 
     def test_missing_catalog_never_connects_another_region(self):
         result, actions = self.backend('no_catalog', 'paris')
