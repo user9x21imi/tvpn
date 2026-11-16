@@ -1,0 +1,52 @@
+#!/bin/bash
+set -euo pipefail
+export PATH=/usr/bin:/bin:/usr/sbin:/sbin
+directory=${0%/*}
+restore() {
+    local record service current before
+    for record in "$directory"/dns.*.name; do
+        [[ -f "$record" ]] || continue
+        service=$(cat "$record")
+        before=${record%.name}.before
+        current=$(networksetup -getdnsservers "$service")
+        # Preserve changes made by another application after our own update.
+        if [[ "$current" == "$(cat "${record%.name}.active")" ]]; then
+            if [[ -s "$before" ]]; then
+                local -a values=()
+                while IFS= read -r line; do values+=("$line"); done < "$before"
+                networksetup -setdnsservers "$service" "${values[@]}"
+            else
+                networksetup -setdnsservers "$service" Empty
+            fi
+        fi
+        rm -f "$record" "$before" "${record%.name}.active"
+    done
+    dscacheutil -flushcache || true
+    killall -HUP mDNSResponder 2>/dev/null || true
+}
+case "${script_type:-down}" in
+    down) restore; exit ;;
+    up) [[ "${dev:-}" =~ ^utun[0-9]+$ ]] || exit 1 ;;
+    *) exit 1 ;;
+esac
+restore
+servers=()
+for name in "${!foreign_option_@}"; do
+    read -r option kind address extra <<< "${!name}"
+    if [[ "$option" == dhcp-option && "$kind" == DNS && -z "$extra" &&
+          "$address" =~ ^10\.([0-9]{1,3}\.){2}[0-9]{1,3}$ ]]; then servers+=("$address"); fi
+done
+(( ${#servers[@]} )) || { echo 'Riseup не прислал DNS.' >&2; exit 1; }
+number=0
+while IFS= read -r service; do
+    [[ -n "$service" && "$service" != \** ]] || continue
+    number=$((number+1))
+    base="$directory/dns.$number"
+    printf '%s\n' "$service" > "$base.name"
+    before=$(networksetup -getdnsservers "$service")
+    if [[ "$before" == *"aren't any DNS Servers"* ]]; then : > "$base.before"; else printf '%s\n' "$before" > "$base.before"; fi
+    printf '%s\n' "${servers[@]}" > "$base.active"
+    networksetup -setdnsservers "$service" "${servers[@]}"
+done < <(networksetup -listallnetworkservices | tail -n +2)
+dscacheutil -flushcache || true
+killall -HUP mDNSResponder 2>/dev/null || true

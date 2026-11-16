@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.pem
+*.key
+*.ovpn
+*.log
+*.pid
+*.previous
+*.before-*
+*.backup
+.publish-state.json
+.DS_Store
+Thumbs.db

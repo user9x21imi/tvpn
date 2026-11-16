@@ -1,0 +1,5 @@
+See THIRD_PARTY_NOTICES.md for versions, licenses
+and upstream source locations of dependencies.
+
+The application source is included in app/.
+Dependencies are dynamically linked and can be replaced.
