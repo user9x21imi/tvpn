@@ -1,4 +1,4 @@
-# RiseupVPN · Steam Deck · WORLDWIDE
+# RiseupVPN · Linux · WORLDWIDE
 
 Запуск: `vpn` или `VPN`. Панель работает от deck, сетевой backend — от root.
 Полноэкранный Konsole: Ctrl+Shift+F. Для 1280×800 подходит моноширинный шрифт
@@ -41,7 +41,7 @@ TLS. Используются только объявленные OpenVPN-тра
 
 ## Без запроса пароля при запуске
 
-Однократно выполните на самом Deck в Konsole:
+Однократно выполните в терминале Linux:
 
 ```sh
 bash "$HOME/.local/share/riseup-vpn/install-passwordless.sh"
@@ -64,7 +64,7 @@ bash "$HOME/.local/share/riseup-vpn/install-passwordless.sh"
 
 ## Установка из архива
 
-Штатные зависимости SteamOS: bash, python3 с curses, sudo/visudo, curl, ip,
+Зависимости Linux: bash, python3 с curses, sudo/visudo, curl, ip,
 flock, Konsole и zsh. OpenVPN x86_64 и библиотеки уже упакованы в .sh.
 Отключение read-only режима и установка пакетов через pacman не нужны.
 
@@ -82,7 +82,7 @@ bash "$HOME/.local/share/riseup-vpn/install-passwordless.sh"
 ```
 
 Если файла ещё нет, пропустите cp. В ~/.zshrc должны быть алиасы
-(на этом Deck они уже настроены):
+(если они ещё не настроены):
 
 ```sh
 alias vpn='bash "$HOME/.local/share/riseup-vpn/Riseup-Amsterdam-SteamDeck.sh"'
@@ -117,7 +117,7 @@ python3 -m unittest discover -s tests -v
 В этой сессии запрещены sudo (no_new_privs), netlink и прямой сетевой доступ.
 Поэтому системное правило ещё не установлено; реальные туннели, доступность
 каталога и восстановление системных маршрутов/DNS не проверены.
-На самом Deck перед запуском сохраните `ip -4 route`, `ip -6 route`,
+В Linux перед запуском сохраните `ip -4 route`, `ip -6 route`,
 `cat /etc/resolv.conf` и, при systemd-resolved, `resolvectl status`.
 После Ctrl+S сравните состояние с исходным и убедитесь, что
 `ip link show riseupvpn0` больше не находит интерфейс.
