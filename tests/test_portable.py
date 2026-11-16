@@ -47,7 +47,7 @@ class PortableTests(unittest.TestCase):
         for value in occupied:
             if not value:current+=1
             elif current:gaps.append(current);current=0
-        self.assertLess(max(gaps,default=0),6)
+        self.assertLessEqual(max(gaps,default=0),1)
 
     def test_macos_interface_event_and_country_confirmation(self):
         m=panel.Model('paris')
