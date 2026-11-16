@@ -1,4 +1,6 @@
-# RiseupVPN · Linux · WORLDWIDE
+```text
++-- RiseupVPN · Linux · WORLDWIDE --+
+```
 
 Запуск: `vpn` или `VPN`. Панель работает от deck, сетевой backend — от root.
 Полноэкранный Konsole: Ctrl+Shift+F. Для 1280×800 подходит моноширинный шрифт
@@ -39,7 +41,11 @@ TLS. Используются только объявленные OpenVPN-тра
 Журнал ограничен 120 строками в памяти. PEM-блоки и управляющие символы
 фильтруются; панель не читает client.pem и client.ovpn.
 
-## Без запроса пароля при запуске
+```text
++--------------------------------------+
+|  [ Без запроса пароля при запуске ]  |
++--------------------------------------+
+```
 
 Однократно выполните в терминале Linux:
 
@@ -62,7 +68,11 @@ bash "$HOME/.local/share/riseup-vpn/install-passwordless.sh"
 Для удаления разрешения администратор может удалить
 `/etc/sudoers.d/zz-riseup-vpn` и `/var/lib/riseup-vpn` после остановки VPN.
 
-## Установка из архива
+```text
++---------------------------+
+|  [ Установка из архива ]  |
++---------------------------+
+```
 
 Зависимости Linux: bash, python3 с curses, sudo/visudo, curl, ip,
 flock, Konsole и zsh. OpenVPN x86_64 и библиотеки уже упакованы в .sh.
@@ -72,7 +82,9 @@ flock, Konsole и zsh. OpenVPN x86_64 и библиотеки уже упако�
 
 ```sh
 mkdir -p "$HOME/.local/share/riseup-vpn"
-# Если уже установлен — сохраните копию:
+```text
++-- Если уже установлен — сохраните копию: --+
+```
 cp -p "$HOME/.local/share/riseup-vpn/Riseup-Amsterdam-SteamDeck.sh" \
   "$HOME/.local/share/riseup-vpn/Riseup-Amsterdam-SteamDeck.sh.backup"
 install -m 700 Riseup-Amsterdam-SteamDeck.sh riseup-panel.py riseup_regions.py \
@@ -98,7 +110,11 @@ alias VPN='bash "$HOME/.local/share/riseup-vpn/Riseup-Amsterdam-SteamDeck.sh"'
 Копии до изменений: `Riseup-Amsterdam-SteamDeck.sh.before-panel`,
 `Riseup-Amsterdam-SteamDeck.sh.before-regions`, `riseup-panel.py.before-regions`.
 
-## Проверки
+```text
++----------------+
+|  [ Проверки ]  |
++----------------+
+```
 
 Из папки исходников:
 

@@ -1,6 +1,12 @@
-# Sources
+```text
++-- Sources --+
+```
 
-## Map
+```text
++-----------+
+|  [ Map ]  |
++-----------+
+```
 
 Made with Natural Earth. World country polygons, scale 1:110m, obtained 2026-11-15:
 https://github.com/nvkelso/natural-earth-vector/blob/master/geojson/ne_110m_admin_0_countries.geojson
@@ -12,7 +18,11 @@ from the viewport. The data remains independent of the VPN gateway inventory.
 Natural Earth data is public domain:
 https://www.naturalearthdata.com/about/terms-of-use/
 
-## VPN
+```text
++-----------+
+|  [ VPN ]  |
++-----------+
+```
 
 Riseup service and account-free client:
 https://riseup.net/en/vpn

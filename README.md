@@ -1,10 +1,31 @@
-# Riseup VPN Panel
+```text
++----------------------------------------------------------------------------+
+| ####  #####  #### ##### #   # ####      #   # ####  #   #                  |
+| #   #   #   #     #     #   # #   #     #   # #   # ##  #                  |
+| #   #   #   #     #     #   # #   #     #   # #   # ##  #                  |
+| ####    #    ###  ####  #   # ####      #   # ####  # # #                  |
+| # #     #       # #     #   # #         #   # #     #  ##                  |
+| #  #    #       # #     #   # #          # #  #     #  ##                  |
+| #   # ##### ####  #####  ###  #           #   #     #   #                  |
+|                                                                            |
+| FREE VPN / TERMINAL PANEL / LINUX + macOS + WINDOWS                        |
++----------------------------------------------------------------------------+
+```
 
 ![Карта мира и выбранный регион](assets/map-preview.png)
 
 ![Панель после остановки туннеля](assets/stoped-preview.png)
 
 [Обложка для карточки ссылки: Riseup VPN](assets/social-preview.png)
+
+```text
++------------------------- CONTROL PANEL -------------------------+
+| Ctrl+S : CONNECT / STOP   | R : REGION | L : LOG | Q : EXIT       |
++-----------------------------------------------------------------+
+|  NL / Amsterdam  FR / Paris  CA / Montreal                        |
+|  US / New York   US / Miami  US / Seattle                         |
++-----------------------------------------------------------------+
+```
 
 Терминальная панель в стиле ASCII/Fastfetch: карта мира из географических
 контуров, подсветка страны, выбор бесплатных локаций Riseup, проверенный
@@ -27,7 +48,11 @@ HTTPS-проверкой через туннель; до совпадения с
 и внешний IP не показываются. На мелких границах выделяются только точки
 выбранной страны, а не целиком символы, содержащие соседние территории.
 
-## Состояние поддержки
+```text
++---------------------------+
+|  [ Состояние поддержки ]  |
++---------------------------+
+```
 
 | Система | Сетевой backend | Проверено |
 |---|---|---|
@@ -40,7 +65,11 @@ HTTPS-проверкой через туннель; до совпадения с
 kill switch при аварии приложения нет; проверка страны не является
 заявлением о полной защите от всех видов утечек.
 
-## Linux: запуск без пароля
+```text
++--------------------------------+
+|  [ Linux: запуск без пароля ]  |
++--------------------------------+
+```
 
 Файлы уже установленной версии должны лежать в `~/.local/share/riseup-vpn`.
 Для установки из репозитория:
@@ -77,7 +106,11 @@ alias VPN='bash "$HOME/.local/share/riseup-vpn/Riseup-Amsterdam-SteamDeck.sh"'
 текстовая диагностика. Все идентификаторы: amsterdam, paris, montreal,
 newyork, miami, seattle. Подробнее: [README-panel.md](README-panel.md).
 
-## macOS
+```text
++-------------+
+|  [ macOS ]  |
++-------------+
+```
 
 Требуются Python 3.11+, Apple Command Line Tools (`xcode-select --install`)
 и [Tunnelblick](https://tunnelblick.net/) с OpenVPN 2.6. Приложение Tunnelblick
@@ -99,7 +132,11 @@ DNS-hook сохраняет настройки сетевых служб, ста
 предыдущие значения после остановки; изменения, сделанные другим
 приложением во время VPN-сессии, не перезаписываются.
 
-## Windows 10/11
+```text
++---------------------+
+|  [ Windows 10/11 ]  |
++---------------------+
+```
 
 1. Установите Python 3.11+ и [OpenVPN Community](https://openvpn.net/community-downloads/)
    с OpenVPN GUI, Wintun и Interactive Service.
@@ -121,7 +158,11 @@ DNS-hook сохраняет настройки сетевых служб, ста
 подтверждения остановки временный приватный ключ удаляется.
 Для корректного закрытия используйте Ctrl+S, затем Q.
 
-## Проверки и ограничения
+```text
++------------------------------+
+|  [ Проверки и ограничения ]  |
++------------------------------+
+```
 
 ```bash
 python3 -m unittest discover -s tests -v
@@ -153,3 +194,16 @@ CI не открывает VPN-туннели и не меняет сеть runn
 не распространяются. Проектный код — MIT; OpenVPN и сторонний runtime
 имеют собственные лицензии, см. [SOURCES.md](SOURCES.md),
 [notices](assets/LINUX-RUNTIME-NOTICES.md) и `bash Riseup-Amsterdam-SteamDeck.sh --licenses`.
+
+```text
++-------------------------- SOURCE TREE ---------------------------+
+| launch.py                  -> native platform launcher           |
+| riseup-panel.py            -> terminal interface                  |
+| world_map.py               -> country geometry + map rendering    |
+| stoped_title.py            -> tightly spaced STOPED dots          |
+| platforms/macos/           -> native OpenVPN + DNS hooks          |
+| platforms/windows/         -> OpenVPN Interactive Service bridge  |
+| assets/                    -> maps, previews, public CA            |
+| tests/                     -> isolated verification               |
++-----------------------------------------------------------------+
+```
