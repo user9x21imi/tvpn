@@ -208,7 +208,7 @@ curl() {
             fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 42, 110, 0, 0))
             process = subprocess.Popen(['python3', str(ROOT/'riseup-panel.py'), str(backend)],
                                        stdin=slave, stdout=slave, stderr=slave,
-                                       env=dict(os.environ, TERM='xterm-256color'), start_new_session=True)
+                                       env=dict(os.environ, RISEUP_NO_UPDATE_CHECK='1', TERM='xterm-256color'), start_new_session=True)
             os.close(slave)
             output = b''
             def collect(seconds):

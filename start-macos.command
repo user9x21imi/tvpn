@@ -16,7 +16,7 @@ fi
 failed() { echo; echo 'Не удалось завершить установку. Скопируйте сообщение выше в журнал поддержки.'; read -r -p 'Enter — закрыть…' _; }
 trap failed ERR
 dest=/Library/PrivilegedHelperTools/riseup-vpn-panel
-wanted=$(shasum -a 256 platforms/macos/backend.sh platforms/macos/dns-hook riseup_regions.py verify_exit.py assets/riseup-ca.crt | shasum -a 256 | awk '{print $1}')
+wanted=$(shasum -a 256 platforms/macos/backend.sh platforms/macos/dns-hook platforms/macos/install.sh riseup_regions.py verify_exit.py assets/riseup-ca.crt | shasum -a 256 | awk '{print $1}')
 installed=$(cat "$dest/source-version" 2>/dev/null || true)
 if [[ "$wanted" != "$installed" ]] || ! sudo -n "$dest/backend.sh" --text --check >/dev/null 2>&1; then
     echo 'Первая установка / обновление. macOS запросит права администратора один раз.'
@@ -36,7 +36,7 @@ if [[ ! -x .venv/bin/python3 ]] || ! .venv/bin/python3 -c 'import curses,psutil'
 fi
 # A launcher in ~/Applications is created automatically; no commands need typing.
 mkdir -p "$HOME/Applications"
-printf '#!/bin/bash\nexec /bin/bash %q "$@"\n' "$source_dir/start-macos.command" > "$HOME/Applications/Riseup VPN.command"
-chmod 755 "$HOME/Applications/Riseup VPN.command"
+printf '#!/bin/bash\nexec /bin/bash %q "$@"\n' "$source_dir/start-macos.command" > "$HOME/Applications/TVPN.command"
+chmod 755 "$HOME/Applications/TVPN.command"
 echo 'Готово. [R] регион, [Ctrl+S] остановить/подключить, [U] ASCII/Unicode.'
 exec .venv/bin/python3 launch.py "$@"

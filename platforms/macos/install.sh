@@ -84,5 +84,5 @@ install -o root -g wheel -m 440 "$policy" /etc/sudoers.d/zz-riseup-vpn-panel
 visudo -c
 sudo -u "$username" sudo -n -k "$dest/backend.sh" --text --check
 # Version stamp lets the next ordinary launch detect stale protected helpers.
-(cd "$source_dir" && shasum -a 256 platforms/macos/backend.sh platforms/macos/dns-hook riseup_regions.py verify_exit.py assets/riseup-ca.crt) | shasum -a 256 | awk '{print $1}' > "$dest/source-version"
+(cd "$source_dir" && shasum -a 256 platforms/macos/backend.sh platforms/macos/dns-hook platforms/macos/install.sh riseup_regions.py verify_exit.py assets/riseup-ca.crt) | shasum -a 256 | awk '{print $1}' > "$dest/source-version"
 echo 'Готово. Запуск панели продолжится автоматически, без повторного пароля.'

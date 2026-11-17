@@ -23,6 +23,7 @@ LABELS = {'catalog': 'ПОЛУЧЕНИЕ СПИСКА ШЛЮЗОВ', 'certificat
           'disconnecting': 'ОСТАНОВКА ТУННЕЛЯ', 'fallback': 'ПРОБУЮ РЕЗЕРВНЫЙ ШЛЮЗ', 'error': 'ОШИБКА', 'off': 'ОТКЛЮЧЕНО'}
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from riseup_regions import REGIONS
+import updater
 from stoped_title import render as stoped_render
 from world_map import render as world_render, position as world_position
 REGION_KEYS = list(REGIONS)
@@ -171,18 +172,18 @@ def graph(history, index, width):
     return bars, peak
 
 
-def draw(screen, m, journal, ended, choosing=None):
+def draw(screen, m, journal, ended, choosing=None, update=None):
     screen.erase()
     height, width = screen.getmaxyx()
-    def put(y, x, text, color=0, bold=False):
+    def put(y, x, text, color=0, bold=False, dim=False):
         if 0 <= y < height and 0 <= x < width - 1:
             try:
                 screen.addnstr(y, x, art_text(text) if m.art=='ascii' else text, width - x - 1,
-                               curses.color_pair(color) | (curses.A_BOLD if bold else 0))
+                               curses.color_pair(color) | (curses.A_BOLD if bold else 0) | (curses.A_DIM if dim else 0))
             except curses.error:
                 pass
     color = 2 if m.state == 'connected' else 3 if m.state == 'error' else 4
-    put(1, 2, 'R I S E U P   /   W O R L D W I D E', 1, True)
+    put(1, 2, 'T V P N   /   W O R L D W I D E', 1, True)
     put(3, 2, '● ' + LABELS.get(m.state, m.state), color, True)
     put(4, 2, m.detail)
     if journal:
@@ -241,7 +242,7 @@ def draw(screen, m, journal, ended, choosing=None):
         box_width = min(width-4, 66)
         left = max(1, (width-box_width)//2)
         top = max(5, (height-13)//2)
-        lines = ['ВЫБОР БЕСПЛАТНОГО РЕГИОНА · RISEUP', '',
+        lines = ['ВЫБОР БЕСПЛАТНОГО РЕГИОНА · TVPN', '',
                  *[('  › ' if index == choosing else '    ') + f"{info['city']:<18} {info['country']}  " + ("нет шлюзов Riseup" if m.counts.get(REGION_KEYS[index])==0 else str(m.counts[REGION_KEYS[index]])+" шлюз(а)" if REGION_KEYS[index] in m.counts else "проверка при подключении")
                    for index, info in enumerate(REGIONS.values())], '',
                  '↑/↓ выбрать · Enter подключить · Esc отменить',
@@ -250,6 +251,20 @@ def draw(screen, m, journal, ended, choosing=None):
         for offset, line in enumerate(lines):
             put(top+offset, left, line.ljust(box_width)[:box_width],
                 6 if 2 <= offset < 8 and m.counts.get(REGION_KEYS[offset-2])==0 else 4 if offset==choosing+2 else 5, offset==choosing+2 or offset==0)
+    credit='by user9x21imi'
+    put(height-1,max(2,width-len(credit)-2),credit,6,dim=True)
+    if update is not None:
+        box_width=min(width-4,72)
+        left=max(1,(width-box_width)//2)
+        top=max(5,(height-9)//2)
+        lines=[f'ДОСТУПНО ОБНОВЛЕНИЕ {update.version}', '',
+               f'Установлено: {updater.local_version(Path(__file__).parent)}',
+               'Обновиться сейчас?  [Y] Yes / Да   [N] No / Нет',
+               'Enter / Esc = No. Текущий VPN будет остановлен.',
+               'После проверки архива панель перезапустится.',
+               'Для сетевого компонента ОС может запросить разрешение.']
+        for offset,line in enumerate(lines):
+            put(top+offset,left,line.ljust(box_width)[:box_width],4 if offset in (0,3) else 5,offset in (0,3))
     screen.refresh()
 
 
@@ -259,6 +274,7 @@ def run(script, selected='amsterdam'):
     except locale.Error:
         pass
     m, messages = Model(selected), queue.Queue()
+    watcher=updater.Watcher(Path(__file__).parent) if os.environ.get('RISEUP_NO_UPDATE_CHECK')!='1' else None
     # Backend owns sudo, certificate acquisition and all network cleanup.
     command = [sys.executable if script.endswith('.py') else '/bin/bash', script,
                '--text', '--events', '--region', selected]
@@ -307,6 +323,7 @@ def run(script, selected='amsterdam'):
         curses.mousemask(curses.BUTTON1_CLICKED | curses.BUTTON1_RELEASED)
         journal, ended, sampled = False, False, 0
         choosing, next_region, pausing = None, None, False
+        offer,pending_update=None,None
         while True:
             while not messages.empty():
                 line = messages.get()
@@ -329,7 +346,15 @@ def run(script, selected='amsterdam'):
             if not ended and now - sampled >= 1:
                 m.sample(now)
                 sampled = now
-            draw(screen, m, journal, ended, choosing)
+            if watcher is not None and offer is None and pending_update is None:
+                offer=watcher.poll()
+            draw(screen, m, journal, ended, choosing, offer)
+            if ended and pending_update is not None:
+                if m.cleanup:
+                    return updater.Request(pending_update,m.selected)
+                updater.decline(pending_update)
+                m.state,m.detail='error','Обновление отменено: восстановление сети не подтверждено'
+                pending_update=None
             if ended and next_region is not None:
                 if m.cleanup:
                     return next_region
@@ -338,6 +363,21 @@ def run(script, selected='amsterdam'):
             if closing and ended:
                 return
             key = screen.getch()
+            if offer is not None:
+                if key in (ord('y'),ord('Y')):
+                    pending_update=offer
+                    offer=None
+                    choosing=None
+                    if not ended:
+                        pausing=True
+                        m.state,m.detail='disconnecting','Останавливаю VPN перед обновлением…'
+                        request_stop()
+                elif key in (ord('n'),ord('N'),10,13,27):
+                    updater.decline(offer)
+                    offer=None
+                continue
+            if pending_update is not None:
+                continue
             if key == curses.KEY_MOUSE:
                 try:
                     _, mx, my, _, buttons = curses.getmouse()
@@ -412,7 +452,7 @@ def run(script, selected='amsterdam'):
             signal.signal(sig, handler)
     if next_selected is not None:
         return next_selected
-    print('RiseupVPN: ' + LABELS.get(m.state, m.state) + '. ' + m.detail)
+    print('TVPN: ' + LABELS.get(m.state, m.state) + '. ' + m.detail)
     return 1 if m.state == 'error' else 0
 
 
@@ -422,7 +462,21 @@ if __name__ == '__main__':
     parser.add_argument('script')
     parser.add_argument('--region', choices=REGION_KEYS, default='amsterdam')
     options = parser.parse_args()
-    result = options.region
-    while isinstance(result, str):
-        result = run(options.script, result)
-    raise SystemExit(result)
+    selected=options.region
+    while True:
+        result=run(options.script,selected)
+        if isinstance(result,str):
+            selected=result
+            continue
+        if isinstance(result,updater.Request):
+            print(f'Скачиваю и проверяю обновление {result.update.version}…',flush=True)
+            try:
+                updater.apply(result.update,Path(__file__).parent)
+            except Exception as error:
+                updater.decline(result.update)
+                print('Обновление не установлено: '+str(error),flush=True)
+                selected=result.region
+                continue
+            print('Обновление установлено. Перезапускаю панель…',flush=True)
+            updater.restart(Path(__file__).parent,result.region)
+        raise SystemExit(result)
