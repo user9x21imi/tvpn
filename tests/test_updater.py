@@ -24,7 +24,11 @@ class UpdaterTests(unittest.TestCase):
         with zipfile.ZipFile(output,'w',zipfile.ZIP_DEFLATED) as z:
             z.writestr('VERSION',version+'\n')
             z.writestr('riseup-panel.py','new panel')
-            for name,data in (extra or {}).items():z.writestr(name,data)
+            for name,data in (extra or {}).items():
+                # ZipInfo normalizes backslashes on Windows; preserve hostile input.
+                info=zipfile.ZipInfo()
+                info.filename=name
+                z.writestr(info,data)
         return output.getvalue()
 
     def update(self,data):
