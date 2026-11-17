@@ -38,5 +38,14 @@ fi
 mkdir -p "$HOME/Applications"
 printf '#!/bin/bash\nexec /bin/bash %q "$@"\n' "$source_dir/start-macos.command" > "$HOME/Applications/TVPN.command"
 chmod 755 "$HOME/Applications/TVPN.command"
+mkdir -p "$HOME/.local/bin"
+install -m 700 "$source_dir/bin/tvpn" "$HOME/.local/bin/tvpn"
+if ! grep -q '^# TVPN shortcut$' "$HOME/.zshrc" 2>/dev/null; then
+    cat >> "$HOME/.zshrc" <<'ZSH'
+
+# TVPN shortcut
+alias tvpn='"$HOME/.local/bin/tvpn"'
+ZSH
+fi
 echo 'Готово. [R] регион, [Ctrl+S] остановить/подключить, [U] ASCII/Unicode.'
 exec .venv/bin/python3 launch.py "$@"

@@ -1,0 +1,7 @@
+#!/bin/bash
+set -euo pipefail
+case "$(uname -s)" in
+    Darwin) exec /bin/bash "$HOME/Library/Application Support/RiseupVPNPanel/start-macos.command" "$@" ;;
+    Linux) exec /bin/bash "$HOME/.local/share/riseup-vpn/Riseup-Amsterdam-SteamDeck.sh" "$@" ;;
+    *) echo 'Запустите TVPN через start-windows.cmd.' >&2; exit 1 ;;
+esac

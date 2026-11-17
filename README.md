@@ -126,6 +126,14 @@ NOPASSWD разрешён только защищённому root-owned backend
 без пароля от deck с игнорированием сохранённого timestamp. Он не сообщает
 об успехе, если эта проверка не пройдена.
 
+Команда **tvpn** запускает панель. На macOS ярлык и alias создаются
+автоматически. Для Linux установите его в пользовательский PATH:
+
+```bash
+mkdir -p "$HOME/.local/bin"
+install -m 700 bin/tvpn "$HOME/.local/bin/tvpn"
+```
+
 Алиасы zsh:
 
 ```bash

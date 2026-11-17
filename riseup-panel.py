@@ -183,7 +183,9 @@ def draw(screen, m, journal, ended, choosing=None, update=None):
             except curses.error:
                 pass
     color = 2 if m.state == 'connected' else 3 if m.state == 'error' else 4
-    put(1, 2, 'T V P N   /   W O R L D W I D E', 1, True)
+    put(1,2,'●',color,True)
+    put(1,4,'tvpn',2,True)
+    put(1,13,'YOUR TUNNEL, LESS NOISE',5,dim=True)
     put(3, 2, '● ' + LABELS.get(m.state, m.state), color, True)
     put(4, 2, m.detail)
     if journal:
