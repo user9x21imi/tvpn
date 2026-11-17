@@ -96,7 +96,10 @@ class RegionTests(unittest.TestCase):
                 self.assertIn('@', screen.text())
                 self.assertNotIn('Увеличьте окно', screen.text())
 
-    def terminal_switch(self, cleanup_ok):
+    def test_ctrl_q_exits_active_tunnel_from_region_menu(self):
+        self.terminal_switch(True, quit_active=True)
+
+    def terminal_switch(self, cleanup_ok, quit_active=False):
         with tempfile.TemporaryDirectory() as tmp:
             log = Path(tmp)/'actions'
             backend = Path(tmp)/'backend.sh'
@@ -138,7 +141,7 @@ while :; do sleep .05; done
                 # Ctrl+S must reach curses even if the terminal initially enables IXON.
                 os.write(master, b'\x13'); collect(.1)
                 self.assertIsNone(process.poll())
-                until(lambda: b'[Q]' in output)
+                until(lambda: b'[Ctrl+Q]' in output)
                 if cleanup_ok:
                     self.assertIn('stop:amsterdam', log.read_text(encoding='utf-8'))
                     restart_offset=len(output)
@@ -155,11 +158,16 @@ while :; do sleep .05; done
                 if cleanup_ok:
                     self.assertEqual(log.read_text(encoding='utf-8').splitlines()[-3:],
                                      ['start:amsterdam', 'stop:amsterdam', 'start:paris'])
-                    os.killpg(process.pid, signal.SIGINT)
+                    if quit_active:
+                        # Global shortcut must also work inside the region menu.
+                        os.write(master, b'r'); collect(.15)
+                        os.write(master, b'\x11')
+                    else:
+                        os.killpg(process.pid, signal.SIGINT)
                     collect(.2)
                     until(lambda: 'stop:paris' in log.read_text(encoding='utf-8'))
                     collect(.2)
-                    os.write(master, b'q')
+                    if not quit_active:os.write(master, b'\x11')
                 else:
                     self.assertNotIn('start:paris', log.read_text(encoding='utf-8'))
                     os.write(master, b'q')

@@ -247,7 +247,7 @@ def draw(screen, m, journal, ended, choosing=None, update=None):
             y += 4
         if y > height-1:
             put(height-3, 2, 'Увеличьте окно / уменьшите шрифт для карты и графиков', 4)
-    put(height-2, 2, '[R] Регион [L] Журнал [U] Вид ' + ('[Ctrl+S] Старт [Q] Выход' if ended else '[Ctrl+S] Стоп'), 5)
+    put(height-2, 2, '[R] Регион [L] Журнал [U] Вид ' + ('[Ctrl+S] Старт' if ended else '[Ctrl+S] Стоп') + ' [Ctrl+Q] Выход', 5)
     if choosing is not None:
         box_width = min(width-4, 66)
         left = max(1, (width-box_width)//2)
@@ -318,6 +318,7 @@ def run(script, selected='amsterdam'):
             request_stop()
     old = {sig: signal.signal(sig, stop) for sig in dict.fromkeys((signal.SIGINT, signal.SIGTERM, getattr(signal, 'SIGHUP', signal.SIGTERM)))}
     def ui(screen):
+        nonlocal closing
         if termios is not None:
             modes = termios.tcgetattr(sys.stdin.fileno())
             modes[0] &= ~(termios.IXON | termios.IXOFF)
@@ -373,6 +374,15 @@ def run(script, selected='amsterdam'):
             if closing and ended:
                 return
             key = screen.getch()
+            if key == 17:  # Ctrl+Q: global exit, including menus and update prompts.
+                choosing = next_region = pending_update = offer = None
+                if ended:
+                    return
+                m.state, m.detail = 'disconnecting', 'Выход: останавливаю VPN и восстанавливаю сеть…'
+                stop()
+                continue
+            if closing:
+                continue
             if offer is not None:
                 if key in (ord('y'),ord('Y')):
                     pending_update=offer

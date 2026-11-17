@@ -71,7 +71,7 @@ HTTPS-проверки страны выхода через туннель. Со
 |  Arrows     Rotate camera     + / -      Zoom                  |
 |  Space      Spin / pause      F          Focus VPN location    |
 |  Wheel      Zoom globe        U          ASCII / Unicode       |
-|  Ctrl+S     Stop / reconnect  Q          Exit after stopping    |
+|  Ctrl+S     Stop / reconnect  Ctrl+Q     Stop VPN and exit    |
 +---------------------------------------------------------------+
 ```
 
@@ -144,3 +144,6 @@ Ctrl+C также останавливает подключение, остав�
 [Технические инструкции и диагностика](docs/technical.md) ·
 [Устройство панели](README-panel.md) · [Лицензии и источники](SOURCES.md) ·
 [История выпусков](https://github.com/user9x21imi/tvpn/releases)
+
+`Ctrl+Q` — выход из клиента из любого экрана: сначала VPN штатно
+останавливается и восстанавливает DNS/маршруты, затем панель закрывается.
