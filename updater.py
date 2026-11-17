@@ -151,7 +151,9 @@ def extract(archive,directory):
             raise UpdateError('Архив обновления слишком большой')
         seen=set()
         for entry in entries:
-            name=entry.filename
+            name=entry.orig_filename
+            if name != entry.filename:
+                raise UpdateError('Изменённый путь в архиве обновления')
             parts=PurePosixPath(name).parts
             mode=entry.external_attr>>16
             if (not parts or '\\' in name or ':' in name or name.startswith('/') or

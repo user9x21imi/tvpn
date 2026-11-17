@@ -1,4 +1,4 @@
-TVPN 1.2.0
+TVPN 1.2.1
 
 - Interactive ASCII globe with real country geometry and shaded sphere.
 - Smooth camera focus on the chosen VPN city; selected country shown as colored dots.
