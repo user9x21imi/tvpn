@@ -4,11 +4,13 @@ set -euo pipefail
 export PATH=/usr/bin:/bin:/usr/sbin:/sbin
 source_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)
 if (( EUID != 0 )); then
-    echo 'Однократная установка режима VPN без пароля. Нужен пароль администратора SteamOS.'
+    echo 'Однократная установка режима VPN без пароля. Нужен пароль администратора Linux.'
     exec sudo -- /bin/bash "$source_dir/install-passwordless.sh"
 fi
 command -v visudo >/dev/null || { echo 'Не найден visudo.' >&2; exit 1; }
-id deck >/dev/null
+target_user=${SUDO_USER:-deck}
+[[ $target_user =~ ^[a-zA-Z_][a-zA-Z0-9_-]*\$?$ ]] || { echo 'Invalid account name'; exit 1; }
+id "$target_user" >/dev/null
 backend_dir=/var/lib/riseup-vpn
 policy=/etc/sudoers.d/zz-riseup-vpn
 [[ ! -L "$backend_dir" && ! -L "$policy" ]] || { echo 'Неожиданная символическая ссылка; установка остановлена.' >&2; exit 1; }
@@ -24,10 +26,10 @@ install -o root -g root -m 644 "$source_dir/riseup_regions.py" "$work/riseup_reg
 install -o root -g root -m 644 "$source_dir/verify_exit.py" "$work/verify_exit.py"
 {
     echo '# RiseupVPN: exact commands only; never a user-writable script or arbitrary shell.'
-    echo 'deck ALL=(root) NOPASSWD: /var/lib/riseup-vpn/backend.sh --text --check'
+    printf '%s ALL=(root) NOPASSWD: /var/lib/riseup-vpn/backend.sh --text --check\n' "$target_user"
     for region in amsterdam paris montreal newyork miami seattle; do
-        printf 'deck ALL=(root) NOPASSWD: /var/lib/riseup-vpn/backend.sh --text --region %s\n' "$region"
-        printf 'deck ALL=(root) NOPASSWD: /var/lib/riseup-vpn/backend.sh --text --region %s --events\n' "$region"
+        printf '%s ALL=(root) NOPASSWD: /var/lib/riseup-vpn/backend.sh --text --region %s\n' "$target_user" "$region"
+        printf '%s ALL=(root) NOPASSWD: /var/lib/riseup-vpn/backend.sh --text --region %s --events\n' "$target_user" "$region"
     done
 } > "$work/policy"
 chmod 440 "$work/policy"
@@ -46,7 +48,7 @@ if [[ -f /etc/sudoers.d/70-riseup-vpn ]]; then
 fi
 visudo -c
 # Verify from deck with the timestamp ignored; a syntax check alone is insufficient.
-if ! runuser -u deck -- sudo -n -k -- "$backend_dir/backend.sh" --text --check; then
+if ! runuser -u "$target_user" -- sudo -n -k -- "$backend_dir/backend.sh" --text --check; then
     echo 'Правило записано, но беспарольный запуск не прошёл проверку. Не закрывайте административный терминал.' >&2
     exit 1
 fi

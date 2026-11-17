@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Install TVPN
+Comment=Install TVPN terminal VPN
+Exec=bash -c 'cd -- "$(dirname -- "$1")" && exec bash ./Install-TVPN-Linux.sh' tvpn %k
+Terminal=true
+Icon=network-vpn
+Categories=Network;

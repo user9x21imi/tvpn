@@ -13,7 +13,7 @@ class PasswordlessTests(unittest.TestCase):
         start = installer.index("{\n    echo '# RiseupVPN:")
         end = installer.index('\nchmod 440', start)
         with tempfile.TemporaryDirectory() as tmp:
-            subprocess.run(['bash', '-c', 'work=$1\n'+installer[start:end], 'policy-test', tmp], check=True)
+            subprocess.run(['bash', '-c', 'work=$1\ntarget_user=deck\n'+installer[start:end], 'policy-test', tmp], check=True)
             policy = Path(tmp)/'policy'
             checked = subprocess.run(['visudo', '-cf', str(policy)], capture_output=True, text=True)
             self.assertEqual(checked.returncode, 0, checked.stdout+checked.stderr)

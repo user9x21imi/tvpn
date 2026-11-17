@@ -32,7 +32,7 @@ class UpdaterTests(unittest.TestCase):
         return output.getvalue()
 
     def update(self,data):
-        return U.Update('1.2.0','https://raw.githubusercontent.com/user9x21imi/riseup-vpn-panel/main/assets/update-bundle.zip',hashlib.sha256(data).hexdigest(),len(data))
+        return U.Update('1.2.0','https://raw.githubusercontent.com/user9x21imi/tvpn/main/assets/update-bundle.zip',hashlib.sha256(data).hexdigest(),len(data))
 
     def fetcher(self,data):
         return lambda url,destination,**kwargs:Path(destination).write_bytes(data)
@@ -44,11 +44,11 @@ class UpdaterTests(unittest.TestCase):
         self.assertIsNone(U.parse_manifest(doc,'2.0.0'))
 
     def test_manifest_rejects_other_hosts_bad_hash_and_size(self):
-        for changes in [{'url':'https://evil.test/update.zip'},{'url':'http://github.com/user9x21imi/riseup-vpn-panel/raw/main/update.zip'},
+        for changes in [{'url':'https://evil.test/update.zip'},{'url':'http://github.com/user9x21imi/tvpn/raw/main/update.zip'},
                         {'sha256':'123'},{'size':True},{'size':U.MAX_ARCHIVE+1}]:
             doc=vars(self.update(b'x')).copy();doc.update(changes)
             with self.assertRaises(U.UpdateError):U.parse_manifest(doc,'1.0.0')
-        self.assertFalse(U.trusted_url('https://raw.githubusercontent.com:bad/user9x21imi/riseup-vpn-panel/a'))
+        self.assertFalse(U.trusted_url('https://raw.githubusercontent.com:bad/user9x21imi/tvpn/a'))
 
     def test_verified_update_preserves_environment_and_settings(self):
         data=self.archive({'new.py':'hello'})

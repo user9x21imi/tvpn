@@ -7,9 +7,9 @@ trap 'rm -rf -- "$work"' EXIT
 trap 'echo "Не удалось скачать установщик. Нажмите Enter."; read -r _' ERR
 echo 'Скачиваю TVPN…'
 curl -fL --proto '=https' --proto-redir '=https' --connect-timeout 10 --max-time 180 \
-    https://codeload.github.com/user9x21imi/riseup-vpn-panel/zip/refs/heads/main -o "$work/source.zip"
+    https://codeload.github.com/user9x21imi/tvpn/zip/refs/heads/main -o "$work/source.zip"
 ditto -x -k "$work/source.zip" "$work/unpacked"
-source_dir="$work/unpacked/riseup-vpn-panel-main"
+source_dir="$work/unpacked/tvpn-main"
 [[ -f "$source_dir/start-macos.command" ]] || exit 1
 dest="$HOME/Library/Application Support/RiseupVPNPanel"
 mkdir -p "$dest"

@@ -52,3 +52,10 @@ public gateways: Amsterdam 3, Paris 9, Montreal 2, Miami 2. Location metadata
 still named New York and Seattle, but neither had gateways. The public
 inventory is preserved as a regression fixture under tests/fixtures.
 GeoIP cities are database estimates, not proof of a server's physical city.
+
+## Interactive globe
+
+UX reference: https://github.com/adam-wier/globe (globe-cli, GPL-3.0).
+TVPN does not copy or embed that program. Its orthographic projection,
+terminal camera and renderer are independent Python code; geographic data
+continues to come from Natural Earth (public domain).

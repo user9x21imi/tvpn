@@ -32,7 +32,7 @@ class Watcher:
     def poll(self):
         if self.sent:return None
         self.sent=True
-        return Update('9.0.0','https://raw.githubusercontent.com/user9x21imi/riseup-vpn-panel/main/assets/update-bundle.zip','0'*64,1)
+        return Update('9.0.0','https://raw.githubusercontent.com/user9x21imi/tvpn/main/assets/update-bundle.zip','0'*64,1)
 def apply(update,root):
     assert not (Path(root)/'active').exists(), 'Installer ran before backend stopped'
     with (Path(root)/'actions').open('a') as f:f.write('apply\\n')

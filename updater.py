@@ -16,7 +16,7 @@ import time
 from urllib.parse import urlparse
 import zipfile
 
-MANIFEST_URL='https://raw.githubusercontent.com/user9x21imi/riseup-vpn-panel/main/update.json'
+MANIFEST_URL='https://raw.githubusercontent.com/user9x21imi/tvpn/main/update.json'
 MAX_ARCHIVE=64*1024*1024
 MAX_EXPANDED=128*1024*1024
 DECLINED=set()
@@ -66,9 +66,9 @@ def trusted_url(value):
         return False
     if url.scheme!='https' or url.username or url.password or port not in (None,443):return False
     if url.netloc=='raw.githubusercontent.com':
-        return url.path.startswith('/user9x21imi/riseup-vpn-panel/')
+        return url.path.startswith(('/user9x21imi/tvpn/','/user9x21imi/riseup-vpn-panel/'))
     if url.netloc=='github.com':
-        return url.path.startswith('/user9x21imi/riseup-vpn-panel/')
+        return url.path.startswith(('/user9x21imi/tvpn/','/user9x21imi/riseup-vpn-panel/'))
     return False
 
 

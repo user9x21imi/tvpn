@@ -43,7 +43,8 @@ jobs:
           Path('release-assets').mkdir()
           import shutil
           shutil.copy2(archive,f'release-assets/TVPN-{version}.zip')
-          shutil.copy2('assets/RiseupVPN-macOS-Installer.zip','release-assets/TVPN-macOS-Installer.zip')
+          for installer in Path('assets').glob('TVPN-*-Installer.zip'):
+              shutil.copy2(installer,Path('release-assets')/installer.name)
           PY
       - name: Create tag and GitHub Release
         run: |

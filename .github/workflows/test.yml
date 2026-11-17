@@ -29,3 +29,13 @@ jobs:
       - run: python -m unittest discover -s tests -p test_updater.py -v
       - run: python -m unittest discover -s tests -p test_globe.py -v
       - run: python -m compileall -q launch.py riseup-panel.py platforms
+      - name: Parse Windows installers
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $files = @('Install-TVPN-Windows.ps1','platforms/windows/install.ps1')
+          foreach ($file in $files) {
+            $tokens = $null; $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Join-Path $PWD $file), [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count) { throw ($errors | Out-String) }
+          }

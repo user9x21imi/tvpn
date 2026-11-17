@@ -32,6 +32,7 @@ def build(root,version):
             info.external_attr=(0o100755 if path.stat().st_mode&0o111 else 0o100644)<<16
             bundle.writestr(info,path.read_bytes())
     digest=hashlib.sha256(archive.read_bytes()).hexdigest()
+    # Keep the redirected archive URL for pre-rename clients' repository allowlist.
     manifest={'version':version,'url':f'https://raw.githubusercontent.com/user9x21imi/riseup-vpn-panel/main/assets/updates/{version}.zip',
               'sha256':digest,'size':archive.stat().st_size}
     (root/'update.json').write_text(json.dumps(manifest,indent=2)+'\n', encoding='utf-8')
