@@ -90,7 +90,7 @@ def availability(document):
 
 if __name__ == '__main__':
     try:
-        data = json.loads(Path(sys.argv[1]).read_text())
+        data = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
         if sys.argv[2] == '--availability':
             for region,count in availability(data).items():
                 print(f'@RISEUP\tavailability\t{region}\t{count}\tRiseup')

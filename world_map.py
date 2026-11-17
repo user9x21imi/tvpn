@@ -12,7 +12,7 @@ NORTH, SOUTH = 84, -60
 
 @functools.lru_cache(maxsize=1)
 def land():
-    return json.loads(Path(__file__).with_name('world-land.json').read_text())
+    return json.loads(Path(__file__).with_name('world-land.json').read_text(encoding='utf-8'))
 
 
 def position(lon, lat, width, height):

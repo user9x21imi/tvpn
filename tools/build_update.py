@@ -15,7 +15,7 @@ from updater import PRIVATE_SUFFIXES,version_tuple
 def build(root,version):
     root=Path(root)
     version_tuple(version)
-    (root/'VERSION').write_text(version+'\n')
+    (root/'VERSION').write_text(version+'\n', encoding='utf-8')
     archive=root/'assets/updates'/f'{version}.zip'
     if archive.exists():raise ValueError('Эта версия уже собрана; увеличьте номер версии')
     archive.parent.mkdir(parents=True,exist_ok=True)
@@ -34,7 +34,7 @@ def build(root,version):
     digest=hashlib.sha256(archive.read_bytes()).hexdigest()
     manifest={'version':version,'url':f'https://raw.githubusercontent.com/user9x21imi/riseup-vpn-panel/main/assets/updates/{version}.zip',
               'sha256':digest,'size':archive.stat().st_size}
-    (root/'update.json').write_text(json.dumps(manifest,indent=2)+'\n')
+    (root/'update.json').write_text(json.dumps(manifest,indent=2)+'\n', encoding='utf-8')
     return manifest
 
 

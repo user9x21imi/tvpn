@@ -23,7 +23,7 @@ def verify(document, address, expected):
 
 if __name__=='__main__':
     try:
-        city,country=verify(json.loads(Path(sys.argv[1]).read_text()),sys.argv[2],sys.argv[3])
+        city,country=verify(json.loads(Path(sys.argv[1]).read_text(encoding='utf-8')),sys.argv[2],sys.argv[3])
         print(f'@RISEUP\tgeo\t{city}\t{country}\tipwho.is')
     except (OSError,ValueError,TypeError,KeyError,AttributeError) as error:
         print(str(error),file=sys.stderr)

@@ -6,7 +6,7 @@ from pathlib import Path
 
 @functools.lru_cache(maxsize=24)
 def render(width, available_height):
-    data = json.loads(Path(__file__).with_name('stoped-mask.json').read_text())
+    data = json.loads(Path(__file__).with_name('stoped-mask.json').read_text(encoding='utf-8'))
     source_width, source_height = data['width'], data['height']
     source = [format(int(row, 16), f'0{source_width}b') for row in data['rows']]
     occupied = [any(row[x] == '1' for row in source) for x in range(source_width)]

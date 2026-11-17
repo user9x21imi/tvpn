@@ -49,20 +49,20 @@ class UpdaterTests(unittest.TestCase):
     def test_verified_update_preserves_environment_and_settings(self):
         data=self.archive({'new.py':'hello'})
         with tempfile.TemporaryDirectory() as tmp:
-            root=Path(tmp)/'app';root.mkdir();(root/'VERSION').write_text('1.0.0\n');(root/'riseup-panel.py').write_text('old panel')
-            (root/'.venv').mkdir();(root/'.venv/user-data').write_text('preserve')
-            (root/'settings').mkdir();(root/'settings/user.json').write_text('{}')
+            root=Path(tmp)/'app';root.mkdir();(root/'VERSION').write_text('1.0.0\n', encoding='utf-8');(root/'riseup-panel.py').write_text('old panel', encoding='utf-8')
+            (root/'.venv').mkdir();(root/'.venv/user-data').write_text('preserve', encoding='utf-8')
+            (root/'settings').mkdir();(root/'settings/user.json').write_text('{}', encoding='utf-8')
             U.apply(self.update(data),root,fetch=self.fetcher(data),platform='win32')
             self.assertEqual(U.local_version(root),'1.2.0')
-            self.assertEqual((root/'riseup-panel.py').read_text(),'new panel')
-            self.assertEqual((root/'.venv/user-data').read_text(),'preserve')
+            self.assertEqual((root/'riseup-panel.py').read_text(encoding='utf-8'),'new panel')
+            self.assertEqual((root/'.venv/user-data').read_text(encoding='utf-8'),'preserve')
             self.assertTrue((root/'settings/user.json').exists())
             self.assertFalse((root/'.update.lock').exists())
 
     def test_corrupt_download_keeps_old_version(self):
         data=self.archive()
         with tempfile.TemporaryDirectory() as tmp:
-            root=Path(tmp);(root/'VERSION').write_text('1.0.0\n')
+            root=Path(tmp);(root/'VERSION').write_text('1.0.0\n', encoding='utf-8')
             with self.assertRaisesRegex(U.UpdateError,'SHA256'):
                 U.apply(self.update(data),root,fetch=self.fetcher(data+b'corrupt'),platform='win32')
             self.assertEqual(U.local_version(root),'1.0.0')
@@ -90,16 +90,16 @@ class UpdaterTests(unittest.TestCase):
     def test_write_failure_rolls_back_all_completed_files(self):
         with tempfile.TemporaryDirectory() as tmp:
             root,stage=Path(tmp)/'app',Path(tmp)/'stage';root.mkdir();stage.mkdir()
-            (root/'a.py').write_text('old A');(root/'b.py').write_text('old B')
-            (stage/'a.py').write_text('new A');(stage/'b.py').write_text('new B')
+            (root/'a.py').write_text('old A', encoding='utf-8');(root/'b.py').write_text('old B', encoding='utf-8')
+            (stage/'a.py').write_text('new A', encoding='utf-8');(stage/'b.py').write_text('new B', encoding='utf-8')
             original=U.os.replace
             def fail_b(source,destination):
                 if Path(destination).name=='b.py':raise OSError('disk full')
                 return original(source,destination)
             with patch.object(U.os,'replace',side_effect=fail_b):
                 with self.assertRaises(OSError):U.replace_files(root,stage)
-            self.assertEqual((root/'a.py').read_text(),'old A')
-            self.assertEqual((root/'b.py').read_text(),'old B')
+            self.assertEqual((root/'a.py').read_text(encoding='utf-8'),'old A')
+            self.assertEqual((root/'b.py').read_text(encoding='utf-8'),'old B')
             self.assertFalse(list(root.glob('*.update-new')))
 
     def test_existing_parent_symlink_cannot_escape_installation(self):
@@ -107,14 +107,14 @@ class UpdaterTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root,stage,outside=(Path(tmp)/n for n in ['app','stage','outside'])
             root.mkdir();stage.mkdir();outside.mkdir();(root/'assets').symlink_to(outside,target_is_directory=True)
-            (stage/'assets').mkdir();(stage/'assets/evil.py').write_text('bad')
+            (stage/'assets').mkdir();(stage/'assets/evil.py').write_text('bad', encoding='utf-8')
             with self.assertRaises(U.UpdateError):U.replace_files(root,stage)
             self.assertFalse((outside/'evil.py').exists())
 
     def test_helper_authorization_is_requested_only_for_changed_backend(self):
         data=self.archive({'Riseup-Amsterdam-SteamDeck.sh':'new backend'})
         with tempfile.TemporaryDirectory() as tmp:
-            root=Path(tmp);(root/'VERSION').write_text('1.0.0\n');called=[]
+            root=Path(tmp);(root/'VERSION').write_text('1.0.0\n', encoding='utf-8');called=[]
             U.apply(self.update(data),root,fetch=self.fetcher(data),helper=lambda *args:called.append(args),platform='linux')
             self.assertEqual(len(called),1)
             U.apply(self.update(data),root,fetch=self.fetcher(data),helper=lambda *args:called.append(args),platform='linux')
@@ -124,7 +124,7 @@ class UpdaterTests(unittest.TestCase):
         data=self.archive({'Riseup-Amsterdam-SteamDeck.sh':'new backend'})
         def deny(*args):raise U.UpdateError('permission denied')
         with tempfile.TemporaryDirectory() as tmp:
-            root=Path(tmp);(root/'VERSION').write_text('1.0.0\n')
+            root=Path(tmp);(root/'VERSION').write_text('1.0.0\n', encoding='utf-8')
             with self.assertRaises(U.UpdateError):U.apply(self.update(data),root,fetch=self.fetcher(data),helper=deny,platform='linux')
             self.assertEqual(U.local_version(root),'1.0.0')
 

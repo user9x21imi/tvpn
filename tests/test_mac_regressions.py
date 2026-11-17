@@ -16,7 +16,7 @@ P=importlib.util.module_from_spec(spec);spec.loader.exec_module(P)
 
 class MacRegressionTests(unittest.TestCase):
     def test_real_provider_catalog_has_no_new_york_or_seattle_gateways(self):
-        data=json.loads((ROOT/'tests/fixtures/riseup-catalog-2026-11-17.json').read_text())
+        data=json.loads((ROOT/'tests/fixtures/riseup-catalog-2026-11-17.json').read_text(encoding='utf-8'))
         self.assertEqual(availability(data),dict(amsterdam=3,paris=9,montreal=2,newyork=0,miami=2,seattle=0))
         self.assertEqual(normalize(data,'newyork'),[])
         self.assertEqual(normalize(data,'seattle'),[])
@@ -64,8 +64,8 @@ class MacRegressionTests(unittest.TestCase):
         self.assertEqual(m.geo_city,'Haarlem')
 
     def test_single_entrypoint_runs_setup_before_launch_and_has_no_xcode_dependency(self):
-        start=(ROOT/'start-macos.command').read_text()
-        install=(ROOT/'platforms/macos/install.sh').read_text()
+        start=(ROOT/'start-macos.command').read_text(encoding='utf-8')
+        install=(ROOT/'platforms/macos/install.sh').read_text(encoding='utf-8')
         self.assertIn('with administrator privileges',start)
         self.assertIn('source-version',start)
         self.assertIn('import curses,psutil',start)

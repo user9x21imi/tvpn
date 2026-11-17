@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location('panel', ROOT / 'riseup-panel.py')
 P = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(P)
-SOURCE = (ROOT / 'Riseup-Amsterdam-SteamDeck.sh').read_text()
+SOURCE = (ROOT / 'Riseup-Amsterdam-SteamDeck.sh').read_text(encoding='utf-8')
 HEADER, PAYLOAD = SOURCE.split('__RISEUP_RUNTIME_BELOW__\n', 1)
 
 
@@ -26,8 +26,8 @@ class PanelTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
             def values(rx, tx):
-                (root/'rx_bytes').write_text(str(rx))
-                (root/'tx_bytes').write_text(str(tx))
+                (root/'rx_bytes').write_text(str(rx), encoding='utf-8')
+                (root/'tx_bytes').write_text(str(tx), encoding='utf-8')
             values(100, 200); m.sample(10, root)
             values(100+2**21, 200+2**20); m.sample(12, root)
             self.assertEqual((m.down, m.up), (1, .5))
@@ -66,17 +66,17 @@ class PanelTests(unittest.TestCase):
                     gateways.append({'host': host+'.riseup.net', 'ip_address': f'192.0.2.{index*2+(number==13)+1}',
                                      'location': region, 'capabilities': {'limited': False, 'transport': [
                                          {'type': 'openvpn', 'ports': ['1194', '80'], 'protocols': ['udp', 'tcp']}]}})
-            (d/'inventory.json').write_text(json.dumps({'locations': locations, 'gateways': gateways}))
+            (d/'inventory.json').write_text(json.dumps({'locations': locations, 'gateways': gateways}), encoding='utf-8')
             fake = d/'openvpn-fake'
             fake.write_text('''#!/bin/bash
 trap 'echo route-restored >> "$TEST_DIR/actions"; exit 0' TERM INT
 printf 'Initialization Sequence Completed\\n' > "$TEST_DIR/openvpn.log"
 echo route-added >> "$TEST_DIR/actions"
 while :; do /bin/sleep .05; done
-''')
+''', encoding='utf-8')
             fake.chmod(0o700)
             hook = d/'dns-hook'
-            hook.write_text('#!/bin/bash\necho dns-restored >> "$TEST_DIR/actions"\n')
+            hook.write_text('#!/bin/bash\necho dns-restored >> "$TEST_DIR/actions"\n', encoding='utf-8')
             hook.chmod(0o700)
             # Keep production connection and cleanup functions; substitute boundaries.
             h = HEADER
@@ -115,12 +115,12 @@ curl() {
 '''
             h = h.replace('extract_runtime() {', prelude+'\nextract_runtime() {')
             h = h.replace('    event gateway "$host"', '    echo "$host" > "$TEST_DIR/host"\n    event gateway "$host"')
-            script = d/'backend.sh'; script.write_text(h)
+            script = d/'backend.sh'; script.write_text(h, encoding='utf-8')
             env = dict(os.environ, TEST_DIR=tmp, SCENARIO=scenario,
                        EXIT_COUNTRY=exit_country or P.REGIONS[selected]['country'])
             result = subprocess.run(['bash', str(script), '--text', '--events', '--region', selected], env=env,
                                     capture_output=True, text=True, timeout=10)
-            return result, (d/'actions').read_text()
+            return result, (d/'actions').read_text(encoding='utf-8')
 
     def test_certificate_timeout_and_cleanup(self):
         result, actions = self.backend('timeout')
@@ -189,20 +189,20 @@ curl() {
         hook = archive.extractfile(next(m for m in archive.getmembers() if m.name.endswith('/dns-hook'))).read().decode()
         with tempfile.TemporaryDirectory() as tmp:
             d = Path(tmp); resolver = d/'resolv.conf'
-            resolver.write_text('nameserver 192.0.2.1\n')
-            (d/'dns-original').write_text('nameserver 192.0.2.1\n')
-            (d/'dns-active').write_text('nameserver 10.1.2.3\n')
-            resolver.write_text('nameserver 10.1.2.3\n')
-            (d/'dns-target').write_text(str(resolver))
-            script = d/'dns-hook'; script.write_text(hook)
+            resolver.write_text('nameserver 192.0.2.1\n', encoding='utf-8')
+            (d/'dns-original').write_text('nameserver 192.0.2.1\n', encoding='utf-8')
+            (d/'dns-active').write_text('nameserver 10.1.2.3\n', encoding='utf-8')
+            resolver.write_text('nameserver 10.1.2.3\n', encoding='utf-8')
+            (d/'dns-target').write_text(str(resolver), encoding='utf-8')
+            script = d/'dns-hook'; script.write_text(hook, encoding='utf-8')
             subprocess.run(['bash', str(script)], env=dict(os.environ, script_type='down'), check=True)
-            self.assertEqual(resolver.read_text(), 'nameserver 192.0.2.1\n')
+            self.assertEqual(resolver.read_text(encoding='utf-8'), 'nameserver 192.0.2.1\n')
             self.assertFalse((d/'dns-target').exists())
 
     def test_terminal_start_resize_log_and_disconnect(self):
         with tempfile.TemporaryDirectory() as tmp:
             backend = Path(tmp)/'fake.sh'
-            backend.write_text("trap \"printf '@RISEUP\\tcleanup\\tok\\n'; exit 130\" INT TERM\nprintf '@RISEUP\\tstate\\tcertificate\\tПолучение сертификата\\n'\nsleep .2\nprintf '@RISEUP\\tgateway\\tvpn04-ams\\tАмстердам\\n@RISEUP\\tconnected\\t1.2.3.4\\tNL\\n'\nwhile :; do sleep .1; done\n")
+            backend.write_text("trap \"printf '@RISEUP\\tcleanup\\tok\\n'; exit 130\" INT TERM\nprintf '@RISEUP\\tstate\\tcertificate\\tПолучение сертификата\\n'\nsleep .2\nprintf '@RISEUP\\tgateway\\tvpn04-ams\\tАмстердам\\n@RISEUP\\tconnected\\t1.2.3.4\\tNL\\n'\nwhile :; do sleep .1; done\n", encoding='utf-8')
             master, slave = pty.openpty()
             import fcntl, struct, termios
             fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 42, 110, 0, 0))

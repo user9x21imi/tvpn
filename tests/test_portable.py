@@ -77,14 +77,14 @@ class PortableTests(unittest.TestCase):
     def test_interface_counters_use_actual_elapsed_time(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=Path(tmp)
-            (root/'rx_bytes').write_text('10');(root/'tx_bytes').write_text('20')
+            (root/'rx_bytes').write_text('10', encoding='utf-8');(root/'tx_bytes').write_text('20', encoding='utf-8')
             m=panel.Model();m.sample(1,root)
-            (root/'rx_bytes').write_text(str(10+2**20));(root/'tx_bytes').write_text(str(20+2**19))
+            (root/'rx_bytes').write_text(str(10+2**20), encoding='utf-8');(root/'tx_bytes').write_text(str(20+2**19), encoding='utf-8')
             m.sample(3,root)
             self.assertEqual((m.down,m.up),(.5,.25))
 
     def test_macos_native_backend_does_not_extract_linux_runtime(self):
-        script=(ROOT/'platforms/macos/backend.sh').read_text()
+        script=(ROOT/'platforms/macos/backend.sh').read_text(encoding='utf-8')
         self.assertNotIn('ld-musl',script)
         self.assertNotIn('__RISEUP_RUNTIME_BELOW__',script)
         self.assertIn('event interface "$tunnel_iface"',script)

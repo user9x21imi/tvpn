@@ -25,7 +25,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from riseup_regions import REGIONS
 import updater
 from stoped_title import render as stoped_render
-from world_map import render as world_render, position as world_position
+from globe import Camera, render as globe_render
+SESSION_CAMERA = Camera()
 REGION_KEYS = list(REGIONS)
 REGION_COUNTS = {}
 
@@ -45,7 +46,8 @@ def safe(text):
 
 
 class Model:
-    def __init__(self, selected='amsterdam'):
+    def __init__(self, selected='amsterdam',camera=None):
+        self.globe=camera if camera is not None else Camera()
         self.art = os.environ.get('RISEUP_ART_STYLE','ascii' if sys.platform=='darwin' else 'unicode')
         self.counts = dict(REGION_COUNTS)
         self.geo_city = '—'
@@ -126,7 +128,7 @@ class Model:
         try:
             if root is not None or sys.platform.startswith('linux'):
                 root = root or Path('/sys/class/net')/self.interface/'statistics'
-                rx, tx = (int((root / name).read_text()) for name in ('rx_bytes', 'tx_bytes'))
+                rx, tx = (int((root / name).read_text(encoding='utf-8')) for name in ('rx_bytes', 'tx_bytes'))
             else:
                 import psutil
                 counters = psutil.net_io_counters(pernic=True, nowrap=False)[self.interface]
@@ -189,6 +191,7 @@ def draw(screen, m, journal, ended, choosing=None, update=None):
     put(3, 2, '● ' + LABELS.get(m.state, m.state), color, True)
     put(4, 2, m.detail)
     if journal:
+        m.globe.box=None
         put(6, 2, 'ПОСЛЕДНИЕ СТРОКИ ЖУРНАЛА', 1, True)
         for y, line in enumerate(list(m.logs)[-max(1, height - 11):], 8):
             put(y, 2, line)
@@ -201,26 +204,31 @@ def draw(screen, m, journal, ended, choosing=None, update=None):
         target = REGIONS[preview]
         map_color = 2 if m.state == 'connected' and preview == m.selected else 4
         if m.state == 'off' and choosing is None:
+            m.globe.box=None
             banner = stoped_render(map_width, map_height)
             top = 6 + max(0, (map_height-len(banner))//2)
             for offset, line in enumerate(banner):
                 put(top+offset, 2+max(0, (map_width-len(line))//2), line, 3, True)
             put(6+map_height, 2, 'Туннель остановлен · Ctrl+S — подключить', 5)
         else:
-            for row_number, row in enumerate(world_render(map_width, map_height, target['country']), 6):
-                start, previous, segment = 0, None, ''
-                for column, (char, highlight) in enumerate(row):
-                    color_here = map_color if highlight else 6
-                    if previous is not None and color_here != previous:
-                        put(row_number, 2+start, segment, previous)
-                        start, segment = column, ''
-                    segment += char
-                    previous = color_here
-                put(row_number, 2+start, segment, previous or 6)
-            px, py = world_position(target['lon'], target['lat'], map_width, map_height)
-            put(6+py, 2+px, '@', map_color, True)
+            m.globe.select(preview,target['lat'],target['lon'])
+            m.globe.tick()
+            m.globe.box=(2,6,map_width,map_height)
+            frame=globe_render(map_width,map_height,m.globe.latitude,m.globe.longitude,
+                               target['country'],m.globe.zoom,(target['lat'],target['lon']))
+            for row_number,row in enumerate(frame,6):
+                start,previous,segment=0,None,''
+                for column,cell in enumerate(row):
+                    style=(map_color,True) if cell.role>=3 else (1,False) if cell.role==2 else (6,False)
+                    if previous is not None and style!=previous:
+                        put(row_number,2+start,segment,previous[0],previous[1])
+                        start,segment=column,''
+                    segment+=cell.char
+                    previous=style
+                if previous is not None:put(row_number,2+start,segment,previous[0],previous[1])
             put(6+map_height, 2, '@ ' + target['city'] + ' / ' + target['country'] +
                 (' · выход подтверждён' if m.state == 'connected' and preview == m.selected else ' · выбрано'), map_color)
+            put(7+map_height,2,'Arrows: rotate  +/-: zoom  F: focus  Space: spin',5,dim=True)
         x, y = (map_width+5, 7) if wide else (2, 6+map_height+2)
         duration = int(time.monotonic() - m.since) if m.since else 0
         timer = f'{duration//3600:02}:{duration//60%60:02}:{duration%60:02}' if m.since else '—'
@@ -275,7 +283,7 @@ def run(script, selected='amsterdam'):
         locale.setlocale(locale.LC_ALL,'')
     except locale.Error:
         pass
-    m, messages = Model(selected), queue.Queue()
+    m, messages = Model(selected,camera=SESSION_CAMERA), queue.Queue()
     watcher=updater.Watcher(Path(__file__).parent) if os.environ.get('RISEUP_NO_UPDATE_CHECK')!='1' else None
     # Backend owns sudo, certificate acquisition and all network cleanup.
     command = [sys.executable if script.endswith('.py') else '/bin/bash', script,
@@ -322,7 +330,7 @@ def run(script, selected='amsterdam'):
             curses.init_pair(i, c, curses.COLOR_BLACK)
         screen.bkgd(' ', curses.color_pair(5))
         screen.timeout(100)
-        curses.mousemask(curses.BUTTON1_CLICKED | curses.BUTTON1_RELEASED)
+        curses.mousemask(curses.BUTTON1_CLICKED | curses.BUTTON1_RELEASED | getattr(curses,'BUTTON4_PRESSED',0) | getattr(curses,'BUTTON5_PRESSED',0))
         journal, ended, sampled = False, False, 0
         choosing, next_region, pausing = None, None, False
         offer,pending_update=None,None
@@ -386,6 +394,9 @@ def run(script, selected='amsterdam'):
                     sh, sw = screen.getmaxyx()
                     top = max(5, (sh-13)//2)
                     left = max(1, (sw-min(sw-4, 66))//2)
+                    if choosing is None and m.globe.contains(mx,my):
+                        if buttons & getattr(curses,'BUTTON4_PRESSED',0):m.globe.scale(1.12)
+                        if buttons & getattr(curses,'BUTTON5_PRESSED',0):m.globe.scale(1/1.12)
                     if buttons & (curses.BUTTON1_CLICKED | curses.BUTTON1_RELEASED):
                         if choosing is None and my == sh-2 and 2 <= mx < 13:
                             key = ord('r')
@@ -411,6 +422,17 @@ def run(script, selected='amsterdam'):
                 elif key in (27, ord('r'), ord('R')):
                     choosing = None
                 continue
+            if not journal and m.state!='off':
+                if key==curses.KEY_LEFT:m.globe.pan(0,-12)
+                elif key==curses.KEY_RIGHT:m.globe.pan(0,12)
+                elif key==curses.KEY_UP:m.globe.pan(8,0)
+                elif key==curses.KEY_DOWN:m.globe.pan(-8,0)
+                elif key in (ord('+'),ord('=')):m.globe.scale(1.12)
+                elif key in (ord('-'),ord('_')):m.globe.scale(1/1.12)
+                elif key in (ord('f'),ord('F')):
+                    target=REGIONS[m.selected]
+                    m.globe.focus(target['lat'],target['lon'])
+                elif key==ord(' '):m.globe.toggle()
             if key in (ord('u'),ord('U')):
                 m.art = 'unicode' if m.art=='ascii' else 'ascii'
                 os.environ['RISEUP_ART_STYLE'] = m.art

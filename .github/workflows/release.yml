@@ -1,0 +1,57 @@
+name: Publish verified TVPN release
+on:
+  workflow_run:
+    workflows: ['Test terminal panel']
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: tvpn-release
+  cancel-in-progress: false
+jobs:
+  release:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify the exact published archive
+        run: |
+          python - <<'PY'
+          import hashlib,json,re
+          from pathlib import Path
+          version=Path('VERSION').read_text(encoding='utf-8').strip()
+          assert re.fullmatch(r'\d+\.\d+\.\d+',version)
+          manifest=json.loads(Path('update.json').read_text(encoding='utf-8'))
+          archive=Path(f'assets/updates/{version}.zip')
+          assert manifest['version']==version
+          assert manifest['sha256']==hashlib.sha256(archive.read_bytes()).hexdigest()
+          assert manifest['size']==archive.stat().st_size
+          Path('release-assets').mkdir()
+          import shutil
+          shutil.copy2(archive,f'release-assets/TVPN-{version}.zip')
+          shutil.copy2('assets/RiseupVPN-macOS-Installer.zip','release-assets/TVPN-macOS-Installer.zip')
+          PY
+      - name: Create tag and GitHub Release
+        run: |
+          version=$(cat VERSION)
+          if gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release v$version already exists. Keeping immutable assets."
+            exit 0
+          fi
+          gh release create "v$version" release-assets/* \
+            --repo "$GITHUB_REPOSITORY" --target "$RELEASE_SHA" \
+            --title "TVPN v$version" --notes-file RELEASE_NOTES.md

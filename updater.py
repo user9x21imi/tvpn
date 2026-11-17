@@ -50,7 +50,7 @@ def version_tuple(value):
 
 def local_version(root):
     try:
-        value=(Path(root)/'VERSION').read_text().strip()
+        value=(Path(root)/'VERSION').read_text(encoding='utf-8').strip()
         version_tuple(value)
         return value
     except (OSError,UpdateError):
@@ -113,7 +113,7 @@ def check(root,fetch=download):
     with tempfile.TemporaryDirectory(prefix='tvpn-version-') as directory:
         manifest=Path(directory)/'version.json'
         fetch(MANIFEST_URL,manifest,limit=65536,timeout=5)
-        try:document=json.loads(manifest.read_text())
+        try:document=json.loads(manifest.read_text(encoding='utf-8'))
         except (OSError,ValueError) as error:raise UpdateError('Некорректный ответ сервера обновлений') from error
     return parse_manifest(document,local_version(root))
 

@@ -164,7 +164,7 @@ class Backend:
         event('state', 'catalog', 'Получение списка шлюзов')
         inventory = self.directory/'gateways.json'
         self.fetch('config/eip-service.json', inventory)
-        document=json.loads(inventory.read_text())
+        document=json.loads(inventory.read_text(encoding='utf-8'))
         for region,count in availability(document).items():event('availability',region,count,'Riseup')
         gateways = normalize(document, self.selected)
         if not gateways:
@@ -172,7 +172,7 @@ class Backend:
         event('state', 'certificate', 'Получение сертификата')
         certificate = self.directory/'client.pem'
         self.fetch('cert', certificate)
-        text = certificate.read_text()
+        text = certificate.read_text(encoding='utf-8')
         if '-----BEGIN CERTIFICATE-----' not in text or not re.search(r'-----BEGIN (RSA )?PRIVATE KEY-----', text):
             raise RuntimeError('Сервер не выдал корректный сертификат')
         subprocess.Popen([str(self.gui), '--silent_connection', '1'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -183,7 +183,7 @@ class Backend:
         if self.pid is None:
             pidfile = self.directory/'openvpn.pid'
             if pidfile.exists():
-                self.pid = int(pidfile.read_text().strip())
+                self.pid = int(pidfile.read_text(encoding='utf-8').strip())
         if self.pid is None:
             return False
         import psutil
@@ -208,8 +208,8 @@ class Backend:
     def connect(self, gateway):
         host, address, proto, port, city, country = gateway
         check_stop()
-        (self.directory/(PROFILE+'.ovpn')).write_text(make_profile(host,address,proto,port,self.directory))
-        self.log.write_text('')
+        (self.directory/(PROFILE+'.ovpn')).write_text(make_profile(host,address,proto,port,self.directory), encoding='utf-8')
+        self.log.write_text('', encoding='utf-8')
         (self.directory/'openvpn.pid').unlink(missing_ok=True)
         self.pid = self.index = None
         event('gateway', host, city, address)
@@ -220,7 +220,7 @@ class Backend:
         until = time.monotonic()+40
         while time.monotonic() < until:
             check_stop()
-            text = self.log.read_text(errors='replace') if self.log.exists() else ''
+            text = self.log.read_text(errors='replace', encoding='utf-8') if self.log.exists() else ''
             if 'Initialization Sequence Completed' in text:
                 route = tunnel_route()
                 if route is None:

@@ -22,7 +22,7 @@ class UpdateUITests(unittest.TestCase):
     def exercise(self,answer,ack=True):
         with tempfile.TemporaryDirectory() as tmp:
             app=Path(tmp)
-            for name in ['riseup-panel.py','riseup_regions.py','world_map.py','world-land.json','stoped_title.py','stoped-mask.json','VERSION','updater.py']:
+            for name in ['riseup-panel.py','riseup_regions.py','world_map.py','globe.py','world-land.json','stoped_title.py','stoped-mask.json','VERSION','updater.py']:
                 shutil.copy2(ROOT/name,app/name)
             # Only the network checker and install side effects are test doubles.
             with (app/'updater.py').open('a') as out:
@@ -53,7 +53,7 @@ trap finish INT TERM
 echo start >> "$APP/actions"
 printf '@RISEUP\\tconnected\\t192.0.2.1\\tNL\\n'
 while :; do sleep .05; done
-''')
+''', encoding='utf-8')
             master,slave=pty.openpty()
             fcntl.ioctl(slave,termios.TIOCSWINSZ,struct.pack('HHHH',40,120,0,0))
             process=subprocess.Popen([sys.executable,str(app/'riseup-panel.py'),str(backend)],
@@ -76,7 +76,7 @@ while :; do sleep .05; done
                 if answer=='n':
                     collect(.2)
                     self.assertTrue((app/'active').exists())
-                    self.assertNotIn('apply',(app/'actions').read_text())
+                    self.assertNotIn('apply',(app/'actions').read_text(encoding='utf-8'))
                     os.write(master,b'\x13')
                     wait_for(lambda:not (app/'active').exists())
                     collect(.2);os.write(master,b'q')
@@ -84,7 +84,7 @@ while :; do sleep .05; done
                     wait_for(lambda:not (app/'active').exists())
                     collect(.2);os.write(master,b'q')
                 wait_for(lambda:process.poll() is not None)
-                actions=(app/'actions').read_text().splitlines()
+                actions=(app/'actions').read_text(encoding='utf-8').splitlines()
                 if answer=='y' and ack:self.assertEqual(actions,['start','stop','cleanup','apply','restart'])
                 else:self.assertNotIn('apply',actions)
                 self.assertNotIn('Traceback',output.decode(errors='replace'))

@@ -9,7 +9,7 @@ from test_panel import ROOT, HEADER
 
 class PasswordlessTests(unittest.TestCase):
     def test_policy_is_valid_and_contains_only_thirteen_exact_commands(self):
-        installer = (ROOT/'install-passwordless.sh').read_text()
+        installer = (ROOT/'install-passwordless.sh').read_text(encoding='utf-8')
         start = installer.index("{\n    echo '# RiseupVPN:")
         end = installer.index('\nchmod 440', start)
         with tempfile.TemporaryDirectory() as tmp:
@@ -17,7 +17,7 @@ class PasswordlessTests(unittest.TestCase):
             policy = Path(tmp)/'policy'
             checked = subprocess.run(['visudo', '-cf', str(policy)], capture_output=True, text=True)
             self.assertEqual(checked.returncode, 0, checked.stdout+checked.stderr)
-            commands = [line.split('NOPASSWD: ', 1)[1] for line in policy.read_text().splitlines()
+            commands = [line.split('NOPASSWD: ', 1)[1] for line in policy.read_text(encoding='utf-8').splitlines()
                         if 'NOPASSWD:' in line]
             self.assertEqual(len(commands), 13)
             self.assertIn('/var/lib/riseup-vpn/backend.sh --text --check', commands)
@@ -35,11 +35,11 @@ class PasswordlessTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             d = Path(tmp)
             sudo = d/'sudo'
-            sudo.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
+            sudo.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n', encoding='utf-8')
             sudo.chmod(0o700)
             source = HEADER.replace('export PATH=/usr/bin:/bin:/usr/sbin:/sbin', ':')
             source = source.replace('[[ -f /var/lib/riseup-vpn/backend.sh ]]', 'true')
-            script = d/'launcher.sh'; script.write_text(source)
+            script = d/'launcher.sh'; script.write_text(source, encoding='utf-8')
             result = subprocess.run(['bash', str(script), '--text', '--region', 'paris', '--events'],
                                     env=dict(os.environ, PATH=tmp+':'+os.environ['PATH']),
                                     capture_output=True, text=True, timeout=2)

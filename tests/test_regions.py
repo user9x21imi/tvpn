@@ -113,7 +113,7 @@ country=NL
 printf '@RISEUP\\tlocation\\t%s\\tCity\\t%s\\n' "$region" "$country"
 printf '@RISEUP\\tconnected\\t192.0.2.1\\t%s\\n' "$country"
 while :; do sleep .05; done
-''')
+''', encoding='utf-8')
             master, slave = pty.openpty()
             fcntl.ioctl(slave, termios.TIOCSWINSZ, struct.pack('HHHH', 40, 120, 0, 0))
             process = subprocess.Popen(['python3', str(ROOT/'riseup-panel.py'), str(backend)],
@@ -140,28 +140,28 @@ while :; do sleep .05; done
                 self.assertIsNone(process.poll())
                 until(lambda: b'[Q]' in output)
                 if cleanup_ok:
-                    self.assertIn('stop:amsterdam', log.read_text())
+                    self.assertIn('stop:amsterdam', log.read_text(encoding='utf-8'))
                     restart_offset=len(output)
                     os.write(master, b'\x13')
-                    until(lambda: log.read_text().count('start:amsterdam') == 2 and b'[Ctrl+S]' in output[restart_offset:])
-                    self.assertEqual(log.read_text().count('start:amsterdam'), 2)
+                    until(lambda: log.read_text(encoding='utf-8').count('start:amsterdam') == 2 and b'[Ctrl+S]' in output[restart_offset:])
+                    self.assertEqual(log.read_text(encoding='utf-8').count('start:amsterdam'), 2)
                 os.write(master, b'r')
                 until(lambda: 'ВЫБОР БЕСПЛАТНОГО РЕГИОНА'.encode() in output)
                 os.write(master, b'j'); collect(.15)
                 os.write(master, b'\r'); collect(.2)
                 if cleanup_ok:
-                    until(lambda: 'start:paris' in log.read_text())
+                    until(lambda: 'start:paris' in log.read_text(encoding='utf-8'))
                     collect(.2)
                 if cleanup_ok:
-                    self.assertEqual(log.read_text().splitlines()[-3:],
+                    self.assertEqual(log.read_text(encoding='utf-8').splitlines()[-3:],
                                      ['start:amsterdam', 'stop:amsterdam', 'start:paris'])
                     os.killpg(process.pid, signal.SIGINT)
                     collect(.2)
-                    until(lambda: 'stop:paris' in log.read_text())
+                    until(lambda: 'stop:paris' in log.read_text(encoding='utf-8'))
                     collect(.2)
                     os.write(master, b'q')
                 else:
-                    self.assertNotIn('start:paris', log.read_text())
+                    self.assertNotIn('start:paris', log.read_text(encoding='utf-8'))
                     os.write(master, b'q')
                 collect(.4)
                 process.wait(timeout=5)
