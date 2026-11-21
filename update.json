@@ -1,6 +1,23 @@
 {
-  "version": "1.3.1",
-  "url": "https://raw.githubusercontent.com/user9x21imi/riseup-vpn-panel/main/assets/updates/1.3.1.zip",
-  "sha256": "eb04751593d7522f7fc68c5f3f65cd2ff65415e749bd876d873d7b1970582b85",
-  "size": 3759866
+  "version": "1.4.0",
+  "url": "https://raw.githubusercontent.com/user9x21imi/tvpn/main/assets/updates/1.4.0.zip",
+  "sha256": "0f34a1d107de31a98bca8af8451d68c45ea02a131352c3f2a57005dcdcf8117f",
+  "size": 3774604,
+  "schema_version": 1,
+  "app_id": "tvpn",
+  "artifacts": [
+    {
+      "platform": "linux-x86_64",
+      "url": "https://raw.githubusercontent.com/user9x21imi/tvpn/main/assets/updates/1.4.0.zip",
+      "sha256": "0f34a1d107de31a98bca8af8451d68c45ea02a131352c3f2a57005dcdcf8117f"
+    }
+  ],
+  "install_argv": [
+    "python3",
+    "${BUNDLE}/install.py",
+    "--prefix",
+    "${PREFIX}",
+    "--no-launch"
+  ],
+  "requires_stop": true
 }

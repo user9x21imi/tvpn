@@ -11,12 +11,14 @@ if [[ "${1:-}" != --text && "${1:-}" != --licenses && -t 0 && -t 1 ]]; then
     exec python3 "$(dirname "$script")/riseup-panel.py" "$script" "$@"
 fi
 events=0
+lock_guard=0
 requested_region=amsterdam
 while (( $# )); do
     case "$1" in
         --text) ;;
         --check) (( EUID == 0 )) || exit 1; echo 'RiseupVPN: беспарольный backend готов'; exit 0 ;;
         --events) events=1 ;;
+        --guard) lock_guard=1 ;;
         --region) shift; requested_region=${1:?Укажите регион после --region} ;;
         --licenses) break ;;
         *) echo "Неизвестный аргумент: $1" >&2; exit 2 ;;
@@ -48,6 +50,13 @@ if [[ "$(uname -sm)" != 'Linux x86_64' ]]; then
     exit 1
 fi
 if (( EUID != 0 )); then
+    if (( lock_guard )); then
+        if [[ -f /var/lib/riseup-vpn/backend.sh ]]; then
+            exec sudo -n -- /var/lib/riseup-vpn/backend.sh --text --guard
+        fi
+        echo 'TVPN backend guard is not installed; update the one-time system setup.' >&2
+        exit 1
+    fi
     sudo_args=(--text --region "$requested_region")
     (( events )) && sudo_args+=(--events)
     # Installed once by an administrator; never grant NOPASSWD to this user copy.
@@ -68,7 +77,14 @@ for program in curl ip flock python3; do
 done
 
 exec 9>/run/riseup-amsterdam.lock
-if ! flock -n 9; then
+chmod 644 /run/riseup-amsterdam.lock
+if (( lock_guard )); then
+    if ! flock -s -n 9; then echo 'TVPN_BACKEND_BUSY' >&2; exit 3; fi
+    printf 'TVPN_GUARD_READY\n'
+    IFS= read -r _release || true
+    exit 0
+fi
+if ! flock -x -n 9; then
     echo 'RiseupVPN уже запущен. Останови его Ctrl+C в первом окне.' >&2
     exit 1
 fi

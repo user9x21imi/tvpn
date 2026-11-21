@@ -12,3 +12,7 @@ __pycache__/
 .publish-state.json
 .DS_Store
 Thumbs.db
+
+.cleanup.json
+.lifecycle.lock
+.update.lock

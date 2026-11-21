@@ -1,5 +1,8 @@
 #!/bin/bash
 set -euo pipefail
+if [[ ${1:-} == --version && $(uname -s) == Linux ]]; then
+    exec python3 "$HOME/.local/share/riseup-vpn/manage.py" version
+fi
 case "$(uname -s)" in
     Darwin) exec /bin/bash "$HOME/Library/Application Support/RiseupVPNPanel/start-macos.command" "$@" ;;
     Linux) exec /bin/bash "$HOME/.local/share/riseup-vpn/Riseup-Amsterdam-SteamDeck.sh" "$@" ;;

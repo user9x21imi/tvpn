@@ -22,7 +22,7 @@ class UpdateUITests(unittest.TestCase):
     def exercise(self,answer,ack=True):
         with tempfile.TemporaryDirectory() as tmp:
             app=Path(tmp)
-            for name in ['riseup-panel.py','riseup_regions.py','world_map.py','globe.py','world-land.json','stoped_title.py','stoped-mask.json','VERSION','updater.py']:
+            for name in ['splash.py','riseup-panel.py','riseup_regions.py','world_map.py','globe.py','world-land.json','stoped_title.py','stoped-mask.json','VERSION','updater.py']:
                 shutil.copy2(ROOT/name,app/name)
             # Only the network checker and install side effects are test doubles.
             with (app/'updater.py').open('a') as out:

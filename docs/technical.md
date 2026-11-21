@@ -298,3 +298,20 @@ GitHub Release создаётся автоматически после успе
 
 `Ctrl+Q` — выход из клиента из любого экрана: сначала VPN штатно
 останавливается и восстанавливает DNS/маршруты, затем панель закрывается.
+
+
+## Передача ttools (TVPN 1.4.0)
+
+См. [handoff contract](../HANDOFF-ttools.md) в этом source tree. Linux-only
+machine entrypoint `manage.py` поддерживает `version`, `check-update`, `status`,
+`doctor`, `stop --timeout SEC`, `update`. Установка `install.py --prefix PATH
+--no-launch` копирует пользовательские файлы; системная часть отдельно вызывает
+sudo/pkexec один раз и не запускает VPN. `--defer-system` пригоден для изоляции.
+Источник автообновлений — исключительно `updater.py`; update.json сохраняет
+legacy поля версии/URL/SHA256/size и добавляет платформенный app contract.
+Приложение обновляется только после cleanup ACK, lifecycle flock, и системного
+backend guard. При несовпадении поведения/тайм-ауте обновление прекращается.
+На SteamOS нужен Linux x86_64, Python с curses, bash, curl, iproute2, flock,
+sudo, visudo. OpenVPN и musl runtime уже упакованы в основной Linux `.sh`.
+macOS/Windows источники остаются для тестов/экспериментов, но этот handoff их
+не объявляет поддержанными или проверенными.

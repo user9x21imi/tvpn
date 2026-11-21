@@ -1,3 +1,4 @@
+import contextlib
 import hashlib
 import io
 import json
@@ -16,7 +17,10 @@ import updater as U
 
 
 class UpdaterTests(unittest.TestCase):
-    def setUp(self):U.DECLINED.clear()
+    def setUp(self):
+        U.DECLINED.clear()
+        self.guard=patch.object(U,'backend_idle',side_effect=contextlib.nullcontext)
+        self.guard.start();self.addCleanup(self.guard.stop)
     def tearDown(self):U.DECLINED.clear()
 
     def archive(self,extra=None,version='1.2.0'):

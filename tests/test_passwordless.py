@@ -8,7 +8,7 @@ from test_panel import ROOT, HEADER
 
 
 class PasswordlessTests(unittest.TestCase):
-    def test_policy_is_valid_and_contains_only_thirteen_exact_commands(self):
+    def test_policy_is_valid_and_contains_only_fourteen_exact_commands(self):
         installer = (ROOT/'install-passwordless.sh').read_text(encoding='utf-8')
         start = installer.index("{\n    echo '# RiseupVPN:")
         end = installer.index('\nchmod 440', start)
@@ -19,10 +19,11 @@ class PasswordlessTests(unittest.TestCase):
             self.assertEqual(checked.returncode, 0, checked.stdout+checked.stderr)
             commands = [line.split('NOPASSWD: ', 1)[1] for line in policy.read_text(encoding='utf-8').splitlines()
                         if 'NOPASSWD:' in line]
-            self.assertEqual(len(commands), 13)
+            self.assertEqual(len(commands), 14)
             self.assertIn('/var/lib/riseup-vpn/backend.sh --text --check', commands)
+            self.assertIn('/var/lib/riseup-vpn/backend.sh --text --guard', commands)
             for command in commands:
-                if command.endswith(' --text --check'):
+                if command.endswith((' --text --check',' --text --guard')):
                     continue
                 words = shlex.split(command)
                 self.assertEqual(words[:3], ['/var/lib/riseup-vpn/backend.sh', '--text', '--region'])

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Unprivileged terminal UI for the bundled Riseup backend (standard library)."""
+import json
+from contextlib import nullcontext
 import collections
 import curses
 import ipaddress
@@ -24,6 +26,7 @@ LABELS = {'catalog': 'ПОЛУЧЕНИЕ СПИСКА ШЛЮЗОВ', 'certificat
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from riseup_regions import REGIONS
 import updater
+from splash import Intro, metadata as splash_metadata
 from stoped_title import render as stoped_render
 from globe import Camera, render as globe_render
 SESSION_CAMERA = Camera()
@@ -278,27 +281,36 @@ def draw(screen, m, journal, ended, choosing=None, update=None):
     screen.refresh()
 
 
-def run(script, selected='amsterdam'):
+SPLASH_SHOWN=False
+
+
+def run(script, selected='amsterdam',no_splash=False,no_motion=False,demo=False):
+    global SPLASH_SHOWN
     try:
         locale.setlocale(locale.LC_ALL,'')
     except locale.Error:
         pass
     m, messages = Model(selected,camera=SESSION_CAMERA), queue.Queue()
-    watcher=updater.Watcher(Path(__file__).parent) if os.environ.get('RISEUP_NO_UPDATE_CHECK')!='1' else None
+    watcher=updater.Watcher(Path(__file__).parent) if not demo and os.environ.get('RISEUP_NO_UPDATE_CHECK')!='1' else None
+    initial_offer=watcher.poll() if watcher is not None else None
     # Backend owns sudo, certificate acquisition and all network cleanup.
-    command = [sys.executable if script.endswith('.py') else '/bin/bash', script,
+    command = [sys.executable if script and script.endswith('.py') else '/bin/bash', script,
                '--text', '--events', '--region', selected]
-    process = subprocess.Popen(command, stdin=subprocess.PIPE,
-                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                               text=True, encoding='utf-8', errors='replace', bufsize=1,
-                               env=dict(os.environ,PYTHONIOENCODING='utf-8'))
+    process = None
     def reader():
         for line in process.stdout:
             messages.put(line)
         messages.put(None)
-    threading.Thread(target=reader, daemon=True).start()
+    def start_backend():
+        nonlocal process
+        process = subprocess.Popen(command, stdin=subprocess.PIPE,
+                                   stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                   text=True, encoding='utf-8', errors='replace', bufsize=1,
+                                   env=dict(os.environ,PYTHONIOENCODING='utf-8'))
+        (Path(__file__).parent/'.cleanup.json').write_text(json.dumps({'cleanup':'pending','region':selected}),encoding='utf-8')
+        threading.Thread(target=reader, daemon=True).start()
     def request_stop():
-        if process.poll() is not None:
+        if process is None or process.poll() is not None:
             return
         if sys.platform == 'win32':
             try:
@@ -309,16 +321,21 @@ def run(script, selected='amsterdam'):
         else:
             process.send_signal(signal.SIGINT)
     closing = False
+    skip_intro = False
     def stop(signum=None, frame=None):
-        nonlocal closing
+        nonlocal closing,skip_intro
+        if process is None and signum == signal.SIGINT:
+            skip_intro=True
+            return
         # Ctrl+C also stops in place; TERM/HUP and explicit exit close the UI.
         closing = closing or signum != signal.SIGINT
         # Same foreground process group: backend also receives terminal Ctrl+C.
-        if process.poll() is None:
+        if process is not None and process.poll() is None:
             request_stop()
     old = {sig: signal.signal(sig, stop) for sig in dict.fromkeys((signal.SIGINT, signal.SIGTERM, getattr(signal, 'SIGHUP', signal.SIGTERM)))}
     def ui(screen):
         nonlocal closing
+        global SPLASH_SHOWN
         if termios is not None:
             modes = termios.tcgetattr(sys.stdin.fileno())
             modes[0] &= ~(termios.IXON | termios.IXOFF)
@@ -328,14 +345,33 @@ def run(script, selected='amsterdam'):
         curses.use_default_colors()
         for i, c in enumerate([curses.COLOR_CYAN, curses.COLOR_GREEN, curses.COLOR_RED,
                                curses.COLOR_YELLOW, curses.COLOR_WHITE, curses.COLOR_BLUE], 1):
-            curses.init_pair(i, c, curses.COLOR_BLACK)
-        screen.bkgd(' ', curses.color_pair(5))
+            curses.init_pair(i, c, -1)
+        screen.bkgd(' ', curses.color_pair(0))
         screen.timeout(100)
         curses.mousemask(curses.BUTTON1_CLICKED | curses.BUTTON1_RELEASED | getattr(curses,'BUTTON4_PRESSED',0) | getattr(curses,'BUTTON5_PRESSED',0))
+        show_intro=not SPLASH_SHOWN and not no_splash and os.environ.get('TVPN_NO_SPLASH')!='1'
+        intro=Intro(splash_metadata(Path(__file__).parent,script),motion=not no_motion and os.environ.get('TVPN_NO_MOTION')!='1',unicode=m.art!='ascii') if show_intro else None
+        SPLASH_SHOWN=True
+        initialized=False
         journal, ended, sampled = False, False, 0
         choosing, next_region, pausing = None, None, False
-        offer,pending_update=None,None
+        offer,pending_update=initial_offer,None
         while True:
+            if not initialized:
+                if closing:return
+                if intro is not None:
+                    intro.draw(screen)
+                    if not intro.done(screen.getch()) and not skip_intro:continue
+                    curses.flushinp()
+                    intro=None
+                if demo:
+                    ended=True
+                    m.state,m.detail,m.cleanup='off','Демонстрация · VPN не запускался',True
+                else:start_backend()
+                initialized=True
+                continue
+            if closing:
+                offer=pending_update=next_region=choosing=None
             while not messages.empty():
                 line = messages.get()
                 if line is None:
@@ -421,6 +457,10 @@ def run(script, selected='amsterdam'):
                 elif key in (curses.KEY_DOWN, ord('j')):
                     choosing = (choosing+1) % len(REGION_KEYS)
                 elif key in (10, 13, curses.KEY_ENTER):
+                    if demo:
+                        m.detail='Демонстрация · переключение VPN отключено'
+                        choosing=None
+                        continue
                     if m.counts.get(REGION_KEYS[choosing]) == 0:
                         m.detail = 'В актуальном каталоге Riseup нет шлюзов этого региона'
                         continue
@@ -446,7 +486,7 @@ def run(script, selected='amsterdam'):
             if key in (ord('u'),ord('U')):
                 m.art = 'unicode' if m.art=='ascii' else 'ascii'
                 os.environ['RISEUP_ART_STYLE'] = m.art
-            if key == 19:  # Ctrl+S, with terminal XON/XOFF disabled.
+            if key == 19 and not demo:  # Ctrl+S, with terminal XON/XOFF disabled.
                 if ended:
                     if m.cleanup:
                         return m.selected
@@ -464,22 +504,14 @@ def run(script, selected='amsterdam'):
                 return
     terminal_modes = termios.tcgetattr(sys.stdin.fileno()) if termios is not None else None
     try:
-        # Keep the normal terminal available while sudo asks for its password.
-        while True:
-            line = messages.get()
-            if line is None:
-                process.wait()
-                return process.returncode
-            if line.startswith('@RISEUP\t'):
-                m.line(line)
-                break
-            print(line, end='', flush=True)
         next_selected = curses.wrapper(ui)
     finally:
-        if process.poll() is None:
+        if process is not None and process.poll() is None:
             stop()
             process.wait()  # Never kill the backend before its cleanup finishes.
-        process.stdin.close()
+        if process is not None:
+            (Path(__file__).parent/'.cleanup.json').write_text(json.dumps({'cleanup':'ok' if m.cleanup else 'failed','region':m.selected}),encoding='utf-8')
+            process.stdin.close()
         if termios is not None and terminal_modes is not None:
             termios.tcsetattr(sys.stdin.fileno(), termios.TCSANOW, terminal_modes)
         for sig, handler in old.items():
@@ -493,12 +525,21 @@ def run(script, selected='amsterdam'):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('script')
+    parser.add_argument('script',nargs='?')
+    parser.add_argument('--no-splash',action='store_true')
+    parser.add_argument('--no-motion',action='store_true')
+    parser.add_argument('--demo',action='store_true',help='Offline UI preview; never creates a backend or checks updates')
     parser.add_argument('--region', choices=REGION_KEYS, default='amsterdam')
     options = parser.parse_args()
+    if not options.script and not options.demo:parser.error('script is required unless --demo is used')
     selected=options.region
     while True:
-        result=run(options.script,selected)
+        try:
+            with (updater.lifecycle(Path(__file__).parent,'ui') if hasattr(updater,'lifecycle') else nullcontext()):
+                result=run(options.script,selected,no_splash=options.no_splash,no_motion=options.no_motion,demo=options.demo)
+        except updater.UpdateError as error:
+            print(str(error),file=sys.stderr)
+            sys.exit(1)
         if isinstance(result,str):
             selected=result
             continue

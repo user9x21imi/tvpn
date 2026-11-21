@@ -1,4 +1,5 @@
 """Opt-in, HTTPS + SHA256 checked updates of the user-owned installation."""
+import contextlib
 import dataclasses
 import hashlib
 import json
@@ -7,6 +8,7 @@ import queue
 from pathlib import Path, PurePosixPath
 import re
 import shutil
+import select
 import stat
 import subprocess
 import sys
@@ -20,7 +22,7 @@ MANIFEST_URL='https://raw.githubusercontent.com/user9x21imi/tvpn/main/update.jso
 MAX_ARCHIVE=64*1024*1024
 MAX_EXPANDED=128*1024*1024
 DECLINED=set()
-PROTECTED={'.git','.venv','__pycache__','logs','settings','.update.lock'}
+PROTECTED={'.cleanup.json','.lifecycle.lock','.git','.venv','__pycache__','logs','settings','.update.lock'}
 PRIVATE_SUFFIXES=('.pem','.key','.ovpn','.log','.pid','.backup','.previous')
 
 
@@ -40,6 +42,91 @@ class Request:
 
 class UpdateError(Exception):
     pass
+
+
+@contextlib.contextmanager
+def lifecycle(root,kind='update'):
+    """Kernel lock shared by the UI and every updater; kernel releases on exit."""
+    root=Path(root).resolve();root.mkdir(parents=True,exist_ok=True)
+    path=root/'.lifecycle.lock'
+    with path.open('a+b') as lock:
+        try:
+            if sys.platform=='win32':
+                import msvcrt
+                lock.seek(0);msvcrt.locking(lock.fileno(),msvcrt.LK_NBLCK,1)
+            else:
+                import fcntl
+                fcntl.flock(lock.fileno(),fcntl.LOCK_EX|fcntl.LOCK_NB)
+        except OSError as error:raise UpdateError('TVPN занят: завершите клиент/обновление и дождитесь cleanup') from error
+        try:
+            lock.seek(0);lock.truncate();lock.write(json.dumps({'pid':os.getpid(),'kind':kind}).encode());lock.flush()
+            yield
+        finally:
+            if sys.platform=='win32':
+                lock.seek(0);msvcrt.locking(lock.fileno(),msvcrt.LK_UNLCK,1)
+            else:fcntl.flock(lock.fileno(),fcntl.LOCK_UN)
+
+
+def lifecycle_status(root):
+    try:
+        with lifecycle(root,'probe'):return {'running':False,'pid':None}
+    except UpdateError:
+        try:info=json.loads((Path(root)/'.lifecycle.lock').read_text(encoding='utf-8'))
+        except (OSError,ValueError):info={}
+        return {'running':True,'pid':info.get('pid') if info.get('kind')=='ui' else None,'kind':info.get('kind')}
+
+
+def require_clean(root):
+    marker=Path(root)/'.cleanup.json'
+    if marker.exists():
+        try:state=json.loads(marker.read_text(encoding='utf-8'))
+        except (OSError,ValueError) as error:raise UpdateError('Неизвестное состояние cleanup; обновление запрещено') from error
+        if state.get('cleanup')!='ok':raise UpdateError('Восстановление сети не подтверждено; обновление запрещено')
+
+
+@contextlib.contextmanager
+def backend_idle():
+    """Hold the protected backend's shared kernel lock across update/install."""
+    if not sys.platform.startswith('linux'):
+        yield
+        return
+    helper=Path('/var/lib/riseup-vpn/backend.sh')
+    if not helper.is_file():
+        yield  # isolated user-prefix install before system setup
+        return
+    command=shutil.which('sudo') or '/usr/bin/sudo'
+    guard=None
+    try:
+        guard=subprocess.Popen([command,'-n','--',str(helper),'--text','--guard'],
+                               stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,
+                               text=True,encoding='utf-8',errors='replace')
+        if not select.select([guard.stdout],[],[],5)[0]:
+            guard.terminate();guard.wait(timeout=2)
+            raise UpdateError('Истёк тайм-аут проверки системной блокировки VPN')
+        ready=guard.stdout.readline().strip()
+        if ready!='TVPN_GUARD_READY':
+            try:guard.wait(timeout=5)
+            except subprocess.TimeoutExpired:guard.terminate();guard.wait(timeout=2)
+            details=guard.stderr.read().strip()
+            raise UpdateError('Защищённый backend не смог заблокировать старт VPN; обновление отменено. Обновите системную установку. '+details[:180])
+    except (OSError,subprocess.TimeoutExpired) as error:
+        if guard is not None:
+            if guard.poll() is None:guard.terminate();guard.wait(timeout=2)
+            for stream in (guard.stdin,guard.stdout,guard.stderr):stream.close()
+        raise UpdateError('Не удалось установить системную блокировку backend; обновление отменено') from error
+    except UpdateError:
+        for stream in (guard.stdin,guard.stdout,guard.stderr):stream.close()
+        raise
+    try:
+        yield
+    finally:
+        guard.stdin.close()
+        try:guard.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            guard.terminate()
+            try:guard.wait(timeout=2)
+            except subprocess.TimeoutExpired:guard.kill();guard.wait()
+        guard.stdout.close();guard.stderr.close()
 
 
 def version_tuple(value):
@@ -193,7 +280,7 @@ def install_helper(stage,platform):
     if result.returncode:raise UpdateError('Системное обновление не разрешено или завершилось ошибкой')
 
 
-def replace_files(root,stage):
+def replace_files(root,stage,finalize=None):
     """Keep user data/venv; roll back every already-written file on a write error."""
     root,stage=Path(root).resolve(),Path(stage)
     with tempfile.TemporaryDirectory(prefix='.riseup-backup-',dir=root.parent) as backup:
@@ -221,6 +308,7 @@ def replace_files(root,stage):
                 finally:
                     temporary.unlink(missing_ok=True)
                 changed.append((relative,existed))
+            if finalize is not None:finalize()
         except BaseException:
             for relative,existed in reversed(changed):
                 target=root/relative
@@ -229,7 +317,7 @@ def replace_files(root,stage):
             raise
 
 
-def apply(update,root,fetch=download,helper=install_helper,platform=None):
+def _apply_locked(update,root,fetch=download,helper=install_helper,platform=None):
     platform=sys.platform if platform is None else platform
     root=Path(root).resolve()
     lock=root/'.update.lock'
@@ -244,9 +332,19 @@ def apply(update,root,fetch=download,helper=install_helper,platform=None):
                 raise UpdateError('SHA256 или размер не совпадает; обновление отменено')
             extract(archive,stage)
             if local_version(stage)!=update.version:raise UpdateError('Версия архива не совпадает с манифестом')
-            if needs_helper_update(root,stage,platform):helper(stage,platform)
-            replace_files(root,stage)
+            changed=needs_helper_update(root,stage,platform)
+            # Upgrade the root guard first. Older installations cannot yet hold the
+            # shared lock, but the privileged installer itself refuses an active backend.
+            if changed:helper(stage,platform)
+            with backend_idle():replace_files(root,stage)
     finally:lock.unlink(missing_ok=True)
+
+
+def apply(update,root,fetch=download,helper=install_helper,platform=None):
+    root=Path(root).resolve()
+    with lifecycle(root):
+        require_clean(root)
+        return _apply_locked(update,root,fetch=fetch,helper=helper,platform=platform)
 
 
 def restart(root,region):

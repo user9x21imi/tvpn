@@ -11,7 +11,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m unittest discover -s tests -v
-      - run: for script in Riseup-Amsterdam-SteamDeck.sh install-passwordless.sh; do bash -n "$script"; done
+      - run: for script in Riseup-Amsterdam-SteamDeck.sh install-passwordless.sh Install-TVPN-Linux.sh; do bash -n "$script"; done
       - run: for script in platforms/macos/backend.sh platforms/macos/dns-hook platforms/macos/install.sh; do bash -n "$script"; done
   portable:
     strategy:
@@ -28,7 +28,9 @@ jobs:
       - run: python -m unittest discover -s tests -p test_mac_regressions.py -v
       - run: python -m unittest discover -s tests -p test_updater.py -v
       - run: python -m unittest discover -s tests -p test_globe.py -v
-      - run: python -m compileall -q launch.py riseup-panel.py platforms
+      - run: python -m unittest discover -s tests -p test_ttools.py -v
+      - run: python -m unittest discover -s tests -p test_splash.py -v
+      - run: python -m compileall -q launch.py riseup-panel.py splash.py install.py manage.py updater.py platforms
       - name: Parse Windows installers
         if: runner.os == 'Windows'
         shell: pwsh

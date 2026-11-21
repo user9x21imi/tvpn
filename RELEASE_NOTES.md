@@ -1,7 +1,11 @@
-TVPN 1.3.1
+TVPN 1.4.0 — integration with the future ttools launcher
 
-- Ctrl+Q exits the client from every screen, including the region menu and update confirmation.
-- The client stops the VPN and waits for network cleanup before closing.
-- Ctrl+S continues to stop/reconnect while leaving the panel open.
-- Update the footer and keyboard documentation.
-- Add a PTY regression for Ctrl+Q with an active tunnel and open region menu.
+- Add install-only Linux entrypoint. `--no-launch` never opens the panel or starts VPN; `--defer-system` is for isolated tests.
+- Add JSON CLI for version, update check/apply, status, doctor and graceful stop.
+- Make TVPN the single updater and add lifecycle exclusion for UI/install/update.
+- Add protected shared backend guard. Updates wait for network cleanup; direct VPN start is refused while files are replaced.
+- Require cleanup acknowledgement, preserve selected region, fail closed on stop timeout, and keep atomic rollback of user files.
+- Make one-time protected system setup rollback its files on failure and serialize against backend start.
+- Publish Linux x86_64 installation contract for ttools. macOS/Windows are not claimed as supported in this handoff.
+
+The install-only command is tested in isolated paths with spaces and Cyrillic characters. CI and local tests do not establish VPN tunnels or alter system sudoers.
