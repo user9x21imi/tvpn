@@ -62,6 +62,7 @@ class TtoolsTests(unittest.TestCase):
             finally:
                 if guard.poll() is None:guard.kill();guard.wait()
 
+    @unittest.skipUnless(sys.platform.startswith('linux'),'ttools lifecycle lock is a Linux handoff contract')
     def test_lock_excludes_updater_and_reports_real_ui_pid(self):
         with tempfile.TemporaryDirectory() as tmp:
             with U.lifecycle(tmp,'ui'):

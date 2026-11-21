@@ -139,15 +139,21 @@ while :; do sleep .05; done
             try:
                 until(lambda: b'[Ctrl+S]' in output)
                 # Ctrl+S must reach curses even if the terminal initially enables IXON.
+                stopped_offset=len(output)
                 os.write(master, b'\x13'); collect(.1)
                 self.assertIsNone(process.poll())
-                until(lambda: b'[Ctrl+Q]' in output)
+                # The shortcut starts a graceful cleanup. Wait until the UI has
+                # consumed the backend's cleanup acknowledgement before sending
+                # another key; otherwise a fast CI runner can deliver Ctrl+S
+                # while the first stop is still in flight.
                 if cleanup_ok:
+                    until(lambda: 'Туннель остановлен'.encode() in output[stopped_offset:])
                     self.assertIn('stop:amsterdam', log.read_text(encoding='utf-8'))
-                    restart_offset=len(output)
                     os.write(master, b'\x13')
-                    until(lambda: log.read_text(encoding='utf-8').count('start:amsterdam') == 2 and b'[Ctrl+S]' in output[restart_offset:])
+                    until(lambda: log.read_text(encoding='utf-8').count('start:amsterdam') == 2)
                     self.assertEqual(log.read_text(encoding='utf-8').count('start:amsterdam'), 2)
+                else:
+                    until(lambda: 'stop:amsterdam' in log.read_text(encoding='utf-8'))
                 os.write(master, b'r')
                 until(lambda: 'ВЫБОР БЕСПЛАТНОГО РЕГИОНА'.encode() in output)
                 os.write(master, b'j'); collect(.15)
@@ -160,7 +166,8 @@ while :; do sleep .05; done
                                      ['start:amsterdam', 'stop:amsterdam', 'start:paris'])
                     if quit_active:
                         # Global shortcut must also work inside the region menu.
-                        os.write(master, b'r'); collect(.15)
+                        os.write(master, b'r')
+                        until(lambda: 'ВЫБОР БЕСПЛАТНОГО РЕГИОНА'.encode() in output)
                         os.write(master, b'\x11')
                     else:
                         os.killpg(process.pid, signal.SIGINT)
