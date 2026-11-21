@@ -1,3 +1,9 @@
+TVPN 1.4.1 — install without starting the VPN
+
+- Make the Linux one-click installer always pass `--no-launch`.
+- Add an isolated installer-entrypoint check so installation cannot start a tunnel.
+- Keep VPN startup an explicit action after installation.
+
 TVPN 1.4.0 — integration with the future ttools launcher
 
 - Add install-only Linux entrypoint. `--no-launch` never opens the panel or starts VPN; `--defer-system` is for isolated tests.

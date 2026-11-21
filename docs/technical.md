@@ -300,7 +300,7 @@ GitHub Release создаётся автоматически после успе
 останавливается и восстанавливает DNS/маршруты, затем панель закрывается.
 
 
-## Передача ttools (TVPN 1.4.0)
+## Передача ttools (TVPN 1.4.1)
 
 См. [handoff contract](../HANDOFF-ttools.md) в этом source tree. Linux-only
 machine entrypoint `manage.py` поддерживает `version`, `check-update`, `status`,

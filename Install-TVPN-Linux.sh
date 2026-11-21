@@ -6,4 +6,4 @@ work=$(mktemp -d)
 trap 'rm -rf -- "$work"' EXIT
 curl -fL --proto '=https' --proto-redir '=https' --connect-timeout 15 --max-time 240 https://codeload.github.com/user9x21imi/tvpn/zip/refs/heads/main -o "$work/source.zip"
 unzip -q "$work/source.zip" -d "$work"
-python3 "$work/tvpn-main/install.py" "$@"
+python3 "$work/tvpn-main/install.py" --no-launch "$@"

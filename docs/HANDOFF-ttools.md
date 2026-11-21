@@ -44,8 +44,8 @@ status       = ["python3", "${PREFIX}/manage.py", "status"]
 ```
 
 Manifest: https://raw.githubusercontent.com/user9x21imi/tvpn/main/update.json
-Linux archive: https://raw.githubusercontent.com/user9x21imi/tvpn/main/assets/updates/1.4.0.zip
-Release asset: https://github.com/user9x21imi/tvpn/releases/download/v1.4.0/TVPN-1.4.0.zip
+Linux archive: https://raw.githubusercontent.com/user9x21imi/tvpn/main/assets/updates/1.4.1.zip
+Release asset: https://github.com/user9x21imi/tvpn/releases/download/v1.4.1/TVPN-1.4.1.zip
 Platform: `linux-x86_64`; SHA-256 is in the sibling `update.json` and `app.json`.
 The archive is checked by both version and SHA-256 before application.
 
@@ -72,11 +72,13 @@ or auth sessions. Temporary certificates and private key live in a root-created
 
 Verified locally without starting a VPN or changing system rules:
 
-- 80 tests pass on Linux, including isolated repeat installation with spaces and
+- 81 tests pass on Linux, including isolated repeat installation with spaces and
   Cyrillic, settings preservation, update checksum/version checks, rollback,
   lifecycle exclusion, cleanup ACK, stop timeout, guard lock behavior, and UI PTY.
 - `install.py --prefix <temporary Unicode path> --no-launch --defer-system`
-  installed version 1.4.0; `manage.py version` and `doctor` returned JSON.
+  installed version 1.4.1; `manage.py version` and `doctor` returned JSON.
+- The Linux one-click entrypoint was exercised with stubbed download/extract
+  commands and verified to pass `--no-launch`; it did not start a VPN.
 - `manage.py doctor` reports platform/prerequisites only; it does not test network.
 - `bash -n` and Python compilation pass. The archive contains the embedded
   OpenVPN runtime and contains no `.pem`, `.key`, `.ovpn`, log, or PID files.

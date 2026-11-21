@@ -1,15 +1,15 @@
 {
-  "version": "1.4.0",
-  "url": "https://raw.githubusercontent.com/user9x21imi/tvpn/main/assets/updates/1.4.0.zip",
-  "sha256": "0f34a1d107de31a98bca8af8451d68c45ea02a131352c3f2a57005dcdcf8117f",
-  "size": 3774604,
+  "version": "1.4.1",
+  "url": "https://raw.githubusercontent.com/user9x21imi/tvpn/main/assets/updates/1.4.1.zip",
+  "sha256": "8d46ec677d65658b1cbdb209a14d5db7106e569a2a06fb0dc82088cf5fdd7388",
+  "size": 3774829,
   "schema_version": 1,
   "app_id": "tvpn",
   "artifacts": [
     {
       "platform": "linux-x86_64",
-      "url": "https://raw.githubusercontent.com/user9x21imi/tvpn/main/assets/updates/1.4.0.zip",
-      "sha256": "0f34a1d107de31a98bca8af8451d68c45ea02a131352c3f2a57005dcdcf8117f"
+      "url": "https://raw.githubusercontent.com/user9x21imi/tvpn/main/assets/updates/1.4.1.zip",
+      "sha256": "8d46ec677d65658b1cbdb209a14d5db7106e569a2a06fb0dc82088cf5fdd7388"
     }
   ],
   "install_argv": [

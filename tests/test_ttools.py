@@ -18,6 +18,24 @@ import updater as U
 
 
 class TtoolsTests(unittest.TestCase):
+    @unittest.skipUnless(sys.platform.startswith('linux'),'Linux one-click installer')
+    def test_linux_one_click_installer_does_not_launch_after_install(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp);stub=root/'bin';stub.mkdir();argv_file=root/'installer-argv'
+            def command(name,body):
+                path=stub/name;path.write_text('#!/bin/bash\n'+body,encoding='utf-8');path.chmod(0o755)
+            command('uname','if [[ "$1" == -s ]]; then echo Linux; else echo x86_64; fi\n')
+            command('sudo',':\n')
+            command('curl','while (($#)); do if [[ "$1" == -o ]]; then out=$2; shift 2; else shift; fi; done\n: > "$out"\n')
+            command('unzip','while (($#)); do if [[ "$1" == -d ]]; then out=$2; shift 2; else shift; fi; done\nmkdir -p "$out/tvpn-main"\n: > "$out/tvpn-main/install.py"\n')
+            command('python3','printf "%s\\n" "$@" > "$TVPN_INSTALLER_ARGV"\n')
+            env=dict(os.environ,PATH=str(stub)+os.pathsep+os.environ['PATH'],TVPN_INSTALLER_ARGV=str(argv_file))
+            run=subprocess.run(['bash',str(ROOT/'Install-TVPN-Linux.sh')],env=env,capture_output=True,text=True,timeout=10)
+            self.assertEqual(run.returncode,0,run.stdout+run.stderr)
+            argv=argv_file.read_text(encoding='utf-8').splitlines()
+            self.assertTrue(argv[0].endswith('/tvpn-main/install.py'),argv)
+            self.assertIn('--no-launch',argv)
+
     @unittest.skipUnless(sys.platform.startswith('linux'),'Linux guard entrypoint')
     def test_guard_is_a_fixed_sudo_argv_and_fails_closed_without_ready(self):
         with tempfile.TemporaryDirectory() as tmp:
